@@ -1,0 +1,4 @@
+# LEX
+
+Project initialized.
+
