@@ -1,27 +1,30 @@
 'use client';
 import { walletAuth } from '@/auth/wallet';
-import { Button, LiveFeedback } from '@worldcoin/mini-apps-ui-kit-react';
+import { Button } from '@/components/ui/button';
 import { useMiniKit } from '@worldcoin/minikit-js/minikit-provider';
 import { useCallback, useEffect, useState } from 'react';
+import { Loader2, Wallet } from 'lucide-react';
 
 /**
- * This component is an example of how to authenticate a user
- * We will use Next Auth for this example, but you can use any auth provider
+ * This component handles wallet authentication using Worldcoin MiniKit
  * Read More: https://docs.world.org/mini-apps/commands/wallet-auth
  */
 export const AuthButton = () => {
   const [isPending, setIsPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const { isInstalled } = useMiniKit();
 
   const onClick = useCallback(async () => {
     if (!isInstalled || isPending) {
       return;
     }
+    setError(null);
     setIsPending(true);
     try {
       await walletAuth();
-    } catch (error) {
-      console.error('Wallet authentication button error', error);
+    } catch (err) {
+      console.error('Wallet authentication error', err);
+      setError('Authentication failed. Please try again.');
       setIsPending(false);
       return;
     }
@@ -35,8 +38,8 @@ export const AuthButton = () => {
         setIsPending(true);
         try {
           await walletAuth();
-        } catch (error) {
-          console.error('Auto wallet authentication error', error);
+        } catch (err) {
+          console.error('Auto wallet authentication error', err);
         } finally {
           setIsPending(false);
         }
@@ -46,23 +49,38 @@ export const AuthButton = () => {
     authenticate();
   }, [isInstalled, isPending]);
 
+  if (!isInstalled) {
+    return (
+      <Button disabled variant="outline" size="lg">
+        <Wallet className="mr-2 h-4 w-4" />
+        World App Required
+      </Button>
+    );
+  }
+
   return (
-    <LiveFeedback
-      label={{
-        failed: 'Failed to login',
-        pending: 'Logging in',
-        success: 'Logged in',
-      }}
-      state={isPending ? 'pending' : undefined}
-    >
+    <div className="space-y-2">
       <Button
         onClick={onClick}
         disabled={isPending}
         size="lg"
-        variant="primary"
+        className="w-full"
       >
-        Login with Wallet
+        {isPending ? (
+          <>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            Connecting...
+          </>
+        ) : (
+          <>
+            <Wallet className="mr-2 h-4 w-4" />
+            Connect Wallet
+          </>
+        )}
       </Button>
-    </LiveFeedback>
+      {error && (
+        <p className="text-sm text-destructive text-center">{error}</p>
+      )}
+    </div>
   );
 };
