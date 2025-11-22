@@ -1,4 +1,5 @@
 import { auth } from '@/auth';
+import { redirect } from 'next/navigation';
 import { Navigation } from '@/components/Navigation';
 import { Page } from '@/components/PageLayout';
 import { WorldcoinStylesLoader } from '@/components/WorldcoinStylesLoader';
@@ -12,8 +13,8 @@ export default async function TabsLayout({
 
   // If the user is not authenticated, redirect to the login page
   if (!session) {
-    console.log('Not authenticated');
-    // redirect('/');
+    console.log('Not authenticated - redirecting to /');
+    redirect('/');
   }
 
   return (
