@@ -3,8 +3,9 @@ import { createServer } from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { connectRedis, disconnectRedis } from './config/redis.js';
+import { connectRedis, disconnectRedis, redisClient } from './config/redis.js';
 import { setupSocketHandlers } from './socket/handlers.js';
+import { enableNotificationsForUser, disableNotificationsForUser, hasNotificationsEnabled } from './services/notification.service.js';
 
 // Load environment variables
 dotenv.config();
@@ -57,6 +58,50 @@ app.get('/', (req, res) => {
       socket: 'ws://localhost:4000',
     },
   });
+});
+
+// Notification endpoints
+app.post('/api/notifications/enable', async (req, res) => {
+  try {
+    const { walletAddress } = req.body;
+
+    if (!walletAddress) {
+      return res.status(400).json({ error: 'Missing walletAddress' });
+    }
+
+    await enableNotificationsForUser(walletAddress);
+    res.json({ success: true, message: 'Notifications enabled' });
+  } catch (error) {
+    console.error('Error enabling notifications:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.post('/api/notifications/disable', async (req, res) => {
+  try {
+    const { walletAddress } = req.body;
+
+    if (!walletAddress) {
+      return res.status(400).json({ error: 'Missing walletAddress' });
+    }
+
+    await disableNotificationsForUser(walletAddress);
+    res.json({ success: true, message: 'Notifications disabled' });
+  } catch (error) {
+    console.error('Error disabling notifications:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.get('/api/notifications/status/:walletAddress', async (req, res) => {
+  try {
+    const { walletAddress } = req.params;
+    const enabled = await hasNotificationsEnabled(walletAddress);
+    res.json({ enabled });
+  } catch (error) {
+    console.error('Error checking notification status:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 // Socket.io connection logging
