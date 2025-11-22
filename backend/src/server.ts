@@ -3,12 +3,23 @@ import { createServer } from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 import { connectRedis, disconnectRedis, redisClient } from './config/redis.js';
 import { setupSocketHandlers } from './socket/handlers.js';
 import { enableNotificationsForUser, disableNotificationsForUser, hasNotificationsEnabled, sendDailyNotifications } from './services/notification.service.js';
 
-// Load environment variables
-dotenv.config();
+// Load environment variables from backend directory
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const envPath = join(__dirname, '../../.env');
+dotenv.config({ path: envPath });
+
+// Log environment variable status (without exposing sensitive values)
+console.log('📋 Environment variables loaded:');
+console.log(`   WORLDCOIN_APP_ID: ${process.env.WORLDCOIN_APP_ID ? '✓ Set' : '✗ Not set'}`);
+console.log(`   WORLDCOIN_API_KEY: ${process.env.WORLDCOIN_API_KEY ? '✓ Set' : '✗ Not set'}`);
+console.log(`   MINI_APP_PATH: ${process.env.MINI_APP_PATH ? '✓ Set' : '✗ Not set'}`);
 
 const app = express();
 const httpServer = createServer(app);
@@ -69,11 +80,41 @@ app.post('/api/notifications/enable', async (req, res) => {
       return res.status(400).json({ error: 'Missing walletAddress' });
     }
 
-    await enableNotificationsForUser(walletAddress);
-    res.json({ success: true, message: 'Notifications enabled' });
+    // Validate wallet address format (basic check)
+    if (typeof walletAddress !== 'string' || walletAddress.length < 10) {
+      return res.status(400).json({ error: 'Invalid walletAddress format' });
+    }
+
+    const saved = await enableNotificationsForUser(walletAddress);
+    
+    if (saved) {
+      // Verify it was saved by checking the database
+      const isEnabled = await hasNotificationsEnabled(walletAddress);
+      if (isEnabled) {
+        res.json({ 
+          success: true, 
+          message: 'Notifications enabled and saved to database',
+          walletAddress,
+          enabled: true
+        });
+      } else {
+        res.status(500).json({ 
+          error: 'Failed to verify notification preference was saved',
+          walletAddress 
+        });
+      }
+    } else {
+      res.status(500).json({ 
+        error: 'Failed to save notification preference',
+        walletAddress 
+      });
+    }
   } catch (error) {
     console.error('Error enabling notifications:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ 
+      error: 'Internal server error',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 });
 
@@ -85,11 +126,41 @@ app.post('/api/notifications/disable', async (req, res) => {
       return res.status(400).json({ error: 'Missing walletAddress' });
     }
 
-    await disableNotificationsForUser(walletAddress);
-    res.json({ success: true, message: 'Notifications disabled' });
+    // Validate wallet address format (basic check)
+    if (typeof walletAddress !== 'string' || walletAddress.length < 10) {
+      return res.status(400).json({ error: 'Invalid walletAddress format' });
+    }
+
+    const removed = await disableNotificationsForUser(walletAddress);
+    
+    if (removed) {
+      // Verify it was removed by checking the database
+      const isEnabled = await hasNotificationsEnabled(walletAddress);
+      if (!isEnabled) {
+        res.json({ 
+          success: true, 
+          message: 'Notifications disabled and saved to database',
+          walletAddress,
+          enabled: false
+        });
+      } else {
+        res.status(500).json({ 
+          error: 'Failed to verify notification preference was removed',
+          walletAddress 
+        });
+      }
+    } else {
+      res.status(500).json({ 
+        error: 'Failed to remove notification preference',
+        walletAddress 
+      });
+    }
   } catch (error) {
     console.error('Error disabling notifications:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ 
+      error: 'Internal server error',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 });
 
@@ -107,14 +178,19 @@ app.get('/api/notifications/status/:walletAddress', async (req, res) => {
 // Manual trigger for sending notifications
 app.post('/api/notifications/send', async (req, res) => {
   try {
-    const { title, message, miniAppPath } = req.body;
+    const { title, message, miniAppPath, appId: bodyAppId, apiKey: bodyApiKey } = req.body;
     
-    const appId = process.env.WORLDCOIN_APP_ID || '';
+    // Allow appId and apiKey to be passed in request body, fallback to env vars
+    const appId = bodyAppId || process.env.WORLDCOIN_APP_ID || '';
+    const apiKey = bodyApiKey || process.env.WORLDCOIN_API_KEY;
     const defaultMiniAppPath = process.env.MINI_APP_PATH || `worldapp://mini-app?app_id=${appId}`;
-    const apiKey = process.env.WORLDCOIN_API_KEY;
 
     if (!appId) {
-      return res.status(400).json({ error: 'WORLDCOIN_APP_ID not configured' });
+      return res.status(400).json({ error: 'WORLDCOIN_APP_ID not configured. Provide it in request body as "appId" or set WORLDCOIN_APP_ID environment variable.' });
+    }
+
+    if (!apiKey) {
+      return res.status(400).json({ error: 'WORLDCOIN_API_KEY is required. Provide it in request body as "apiKey" or set WORLDCOIN_API_KEY environment variable.' });
     }
 
     // Use provided values or defaults

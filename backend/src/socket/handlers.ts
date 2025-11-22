@@ -56,10 +56,20 @@ export function setupSocketHandlers(io: Server) {
         // Store socket ID in Redis for WebRTC signaling
         await socketTrackingService.setUserSocket(finalUserId, socket.id);
 
+        // Check if user is already in queue (shouldn't happen, but handle it)
+        const wasInQueue = await queueService.isUserInQueue(finalUserId);
+        
         // Try to find a match immediately
         const match = await matchingService.findMatch(userData);
 
         if (match) {
+          // Match found! Remove current user from queue if they were in it
+          if (wasInQueue) {
+            await queueService.leaveQueue(finalUserId, role, language);
+          }
+          
+          // The matched user is already removed from queue and active_users by getNextFromQueue
+          
           // Match found! Notify both users
           socket.emit('matched', {
             partner: {
