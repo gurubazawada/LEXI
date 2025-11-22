@@ -12,6 +12,7 @@ import { MiniKit } from '@worldcoin/minikit-js';
 import { useMiniKit } from '@worldcoin/minikit-js/minikit-provider';
 import { useSocket } from '@/hooks/useSocket';
 import type { MatchedPayload, QueuedPayload, ErrorPayload } from '@/hooks/useSocket';
+import { VoiceCall } from '@/components/VoiceCall';
 
 // Animation variants
 const containerVariants = {
@@ -33,6 +34,7 @@ const languages = [
 
 type QueueState = 'idle' | 'loading' | 'queued' | 'matched';
 type Partner = {
+  id?: string;
   username?: string;
   walletAddress?: string;
   language?: string;
@@ -60,6 +62,7 @@ export default function Home() {
   const [status, setStatus] = useState<QueueState>('idle');
   const [partner, setPartner] = useState<Partner | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
+  const [partnerId, setPartnerId] = useState<string | null>(null);
   const [chatSent, setChatSent] = useState(false);
   const { isInstalled } = useMiniKit();
   const { isConnected, isConnecting, joinQueue, leaveQueue, onMatched, onQueued, onError, offMatched, offQueued, offError } = useSocket();
@@ -143,6 +146,7 @@ export default function Home() {
 
     setStatus('idle');
     setPartner(null);
+    setPartnerId(null);
     setUserId(null);
     setChatSent(false);
   }, [leaveQueue]);
@@ -152,6 +156,7 @@ export default function Home() {
     const handleMatched = (data: MatchedPayload) => {
       console.log('Matched!', data);
       setPartner(data.partner);
+      setPartnerId(data.partner.id);
       setStatus('matched');
       setUserId(data.userId);
 
@@ -377,6 +382,13 @@ export default function Home() {
                     <p className="text-xs text-center text-muted-foreground">
                       Opens World Chat with {partner?.username || 'your match'}.
                     </p>
+                    
+                    {/* Voice Call Component */}
+                    <VoiceCall 
+                      partnerId={partnerId}
+                      partnerName={partner?.username || null}
+                    />
+                    
                     <Button 
                       variant="ghost" 
                       onClick={reset}
