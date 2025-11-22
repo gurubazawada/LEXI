@@ -12,31 +12,13 @@ dotenv.config();
 const app = express();
 const httpServer = createServer(app);
 
-// Configure CORS - allow multiple origins for development
-const corsOrigins = process.env.CORS_ORIGIN
-  ? process.env.CORS_ORIGIN.split(',')
-  : ['http://localhost:3000', 'http://127.0.0.1:3000', 'https://unobsequiously-unruffled-jesse.ngrok-free.dev'];
+// Configure CORS - allow all origins
+const corsOrigin = process.env.CORS_ORIGIN || 'not set';
+console.log('🌐 CORS_ORIGIN environment variable:', corsOrigin);
+console.log('🌐 CORS configured to allow: * (all origins)');
 
 app.use(cors({
-  origin: (origin, callback) => {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-    
-    // Check if origin is in allowed list
-    if (corsOrigins.some(allowed => origin.startsWith(allowed))) {
-      callback(null, true);
-    } else {
-      // For development, allow all localhost origins and ngrok domains
-      if (origin.includes('localhost') || 
-          origin.includes('127.0.0.1') || 
-          origin.includes('ngrok-free.dev') ||
-          origin.includes('ngrok.io')) {
-        callback(null, true);
-      } else {
-        callback(new Error('Not allowed by CORS'));
-      }
-    }
-  },
+  origin: '*', // Allow all origins
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
@@ -44,28 +26,16 @@ app.use(cors({
 
 app.use(express.json());
 
-// Socket.io setup with CORS
+// Request logging middleware
+app.use((req, res, next) => {
+  console.log(`📥 ${new Date().toISOString()} - ${req.method} ${req.path} from ${req.get('origin') || 'no origin'}`);
+  next();
+});
+
+// Socket.io setup with CORS - allow all origins
 const io = new Server(httpServer, {
   cors: {
-    origin: (origin, callback) => {
-      // Allow requests with no origin
-      if (!origin) return callback(null, true);
-      
-      // Check if origin is in allowed list
-      if (corsOrigins.some(allowed => origin.startsWith(allowed))) {
-        callback(null, true);
-      } else {
-        // For development, allow all localhost origins and ngrok domains
-        if (origin.includes('localhost') || 
-            origin.includes('127.0.0.1') || 
-            origin.includes('ngrok-free.dev') ||
-            origin.includes('ngrok.io')) {
-          callback(null, true);
-        } else {
-          callback(new Error('Not allowed by CORS'));
-        }
-      }
-    },
+    origin: '*', // Allow all origins
     methods: ['GET', 'POST'],
     credentials: true,
   },
@@ -87,6 +57,17 @@ app.get('/', (req, res) => {
       socket: 'ws://localhost:4000',
     },
   });
+});
+
+// Socket.io connection logging
+io.on('connection', (socket) => {
+  console.log(`🔌 New Socket.io connection attempt from: ${socket.handshake.headers.origin || 'unknown origin'}`);
+  console.log(`   Socket ID: ${socket.id}`);
+  console.log(`   Transport: ${socket.conn.transport.name}`);
+});
+
+io.engine.on('connection_error', (err) => {
+  console.error('❌ Socket.io connection error:', err);
 });
 
 // Setup Socket.io handlers
@@ -134,7 +115,7 @@ async function startServer() {
     httpServer.listen(PORT, () => {
       console.log(`\n🚀 Server running on port ${PORT}`);
       console.log(`📡 Socket.io listening for connections`);
-      console.log(`🌐 CORS enabled for: ${corsOrigins.join(', ')}`);
+      console.log(`🌐 CORS enabled for: * (all origins)`);
       console.log(`\n✓ Ready to accept connections\n`);
     });
   } catch (error) {
