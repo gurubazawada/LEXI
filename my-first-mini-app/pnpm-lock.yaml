@@ -23,6 +23,9 @@ importers:
       iconoir-react:
         specifier: ^7.11.0
         version: 7.11.0(react@19.2.0)
+      minikit-js-dev-preview:
+        specifier: ^1.9.7
+        version: 1.9.7(@types/react@19.2.6)(react@19.2.0)(typescript@5.9.3)(viem@2.23.5(typescript@5.9.3))
       next:
         specifier: 15.2.3
         version: 15.2.3(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
@@ -2009,6 +2012,13 @@ packages:
   micromatch@4.0.8:
     resolution: {integrity: sha512-PXwfBhYu0hBCPw8Dn0E+WDYb7af3dSLVWKi3HGv84IdF4TyFoC0ysxFd0Goxw7nSv4T/PzEJQxsYsEiFCKo2BA==}
     engines: {node: '>=8.6'}
+
+  minikit-js-dev-preview@1.9.7:
+    resolution: {integrity: sha512-+wkSA7EohEC+XWW7aLdVLNA163M2KCypYVpYLkHSwqUjrhI3Zqdm5zT4FhzTJXComki/AlSvD+Nehq6tnc4eww==}
+    engines: {node: '>= 16'}
+    peerDependencies:
+      react: ^17 || ^18 || ^19
+      viem: ^2.23.5
 
   minimatch@3.1.2:
     resolution: {integrity: sha512-J7p63hRiAjw1NDEww1W7i37+ByIrOWO5XQQAzZ3VOcL0PNybwpfmV/N05zFAzwQ9USyEcX6t3UO+K5aqBQOIHw==}
@@ -4636,6 +4646,18 @@ snapshots:
     dependencies:
       braces: 3.0.3
       picomatch: 2.3.1
+
+  minikit-js-dev-preview@1.9.7(@types/react@19.2.6)(react@19.2.0)(typescript@5.9.3)(viem@2.23.5(typescript@5.9.3)):
+    dependencies:
+      '@worldcoin/idkit-core': 2.1.0(@types/react@19.2.6)(react@19.2.0)(typescript@5.9.3)
+      abitype: 1.2.0(typescript@5.9.3)
+      react: 19.2.0
+      viem: 2.23.5(typescript@5.9.3)
+    transitivePeerDependencies:
+      - '@types/react'
+      - immer
+      - typescript
+      - zod
 
   minimatch@3.1.2:
     dependencies:
