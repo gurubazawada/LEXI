@@ -1,6 +1,6 @@
 'use client';
 import { Button, LiveFeedback } from '@worldcoin/mini-apps-ui-kit-react';
-import { MiniKit, Tokens, tokenToDecimals } from '@worldcoin/minikit-js';
+import { MiniKit, Tokens, tokenToDecimals } from 'minikit-js-dev-preview';
 import { useState } from 'react';
 
 /**

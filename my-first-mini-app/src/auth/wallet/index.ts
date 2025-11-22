@@ -1,4 +1,4 @@
-import { MiniKit } from '@worldcoin/minikit-js';
+import { MiniKit } from 'minikit-js-dev-preview';
 import { signIn } from 'next-auth/react';
 import { getNewNonces } from './server-helpers';
 

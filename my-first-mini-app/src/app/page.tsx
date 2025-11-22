@@ -36,9 +36,9 @@ export default function Home() {
       <div className="absolute -bottom-20 -left-20 w-72 h-72 bg-secondary/50 rounded-full blur-3xl -z-10" />
 
       <div className="w-full max-w-md space-y-8 z-10">
-        
+
         {/* Header / Brand */}
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           className="text-center space-y-4"
@@ -101,7 +101,7 @@ export default function Home() {
         </motion.div>
 
         {/* Footer */}
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1, transition: { delay: 0.6 } }}
           className="text-center text-sm text-muted-foreground/60"

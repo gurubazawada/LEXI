@@ -3,7 +3,7 @@ import {
   MiniAppWalletAuthSuccessPayload,
   MiniKit,
   verifySiweMessage,
-} from '@worldcoin/minikit-js';
+} from 'minikit-js-dev-preview';
 import NextAuth, { type DefaultSession } from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
 
