@@ -1,6 +1,7 @@
 import { MiniKit } from 'minikit-js-dev-preview';
 import { signIn } from 'next-auth/react';
 import { getNewNonces } from './server-helpers';
+import { requestNotificationPermission } from './request-notifications';
 
 /**
  * Authenticates a user via their wallet using a nonce-based challenge-response mechanism.
@@ -42,6 +43,16 @@ export const walletAuth = async () => {
     signedNonce,
     finalPayloadJson: JSON.stringify(result.finalPayload),
   });
+  
+  // Request notification permission after successful authentication
+  // Pass wallet address so user can be registered for notifications
+  const walletAddress = result.finalPayload.address;
+  try {
+    await requestNotificationPermission(walletAddress);
+  } catch (error) {
+    // Don't fail auth if notification permission fails
+    console.error('Failed to request notification permission:', error);
+  }
   
   // Return success so the calling component can handle navigation
   return { success: true };
