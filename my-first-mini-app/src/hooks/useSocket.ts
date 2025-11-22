@@ -3,6 +3,9 @@ import { io, Socket } from 'socket.io-client';
 
 const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:4000';
 
+// Log the Socket.io URL for debugging
+console.log('🔌 Socket.io Backend URL:', SOCKET_URL);
+
 export interface PartnerData {
   username: string;
   walletAddress?: string;
@@ -37,25 +40,29 @@ export function useSocket() {
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionAttempts: 5,
+      transports: ['websocket', 'polling'],
+      extraHeaders: {
+        'ngrok-skip-browser-warning': 'true'
+      }
     });
 
     socketRef.current = socket;
 
     // Connection event handlers
     socket.on('connect', () => {
-      console.log('✓ Connected to matching server');
+      console.log('✓ Connected to matching server:', SOCKET_URL);
       setIsConnected(true);
       setIsConnecting(false);
     });
 
     socket.on('disconnect', () => {
-      console.log('✗ Disconnected from matching server');
+      console.log('✗ Disconnected from matching server:', SOCKET_URL);
       setIsConnected(false);
       setIsConnecting(false);
     });
 
     socket.on('connect_error', (error) => {
-      console.error('Connection error:', error);
+      console.error('❌ Connection error to', SOCKET_URL, ':', error.message);
       setIsConnecting(false);
     });
 
