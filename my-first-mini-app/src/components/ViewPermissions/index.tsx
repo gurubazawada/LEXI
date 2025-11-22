@@ -1,8 +1,8 @@
 'use client';
 
 import { ListItem } from '@worldcoin/mini-apps-ui-kit-react';
-import { MiniKit } from '@worldcoin/minikit-js';
-import { useMiniKit } from '@worldcoin/minikit-js/minikit-provider';
+import { MiniKit } from 'minikit-js-dev-preview';
+import { useMiniKit } from 'minikit-js-dev-preview/minikit-provider';
 import { useEffect, useState } from 'react';
 /**
  * This component is an example of how to view the permissions of a user

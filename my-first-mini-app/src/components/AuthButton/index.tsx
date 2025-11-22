@@ -1,7 +1,7 @@
 'use client';
 import { walletAuth } from '@/auth/wallet';
 import { Button } from '@/components/ui/button';
-import { useMiniKit } from '@worldcoin/minikit-js/minikit-provider';
+import { useMiniKit } from 'minikit-js-dev-preview/minikit-provider';
 import { useCallback, useEffect, useState } from 'react';
 import { Loader2, Wallet } from 'lucide-react';
 

@@ -8,16 +8,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { MessageCircle, User, Check, Loader2, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
-// import { MiniKit } from '@worldcoin/minikit-js';
-import { useMiniKit } from '@worldcoin/minikit-js/minikit-provider';
 import {
   MiniKit,
-  // useMiniKit,
   ResponseEvent,
   type MiniAppChatPayload,
   type ChatPayload,
   ChatErrorCodes
 } from 'minikit-js-dev-preview';
+import { useMiniKit } from 'minikit-js-dev-preview/minikit-provider';
 import { useSession } from 'next-auth/react';
 
 import { useSocket } from '@/hooks/useSocket';
@@ -71,7 +69,9 @@ export default function Home() {
   const [partner, setPartner] = useState<Partner | null>(null);
   const [chatSent, setChatSent] = useState(false);
   const [chatError, setChatError] = useState<string | null>(null);
+  const [testChatSent, setTestChatSent] = useState(false);
   const chatSubscriptionRef = useRef<(() => void) | void | null>(null);
+  const testChatSubscriptionRef = useRef<(() => void) | void | null>(null);
   const { isInstalled } = useMiniKit();
   const { data: session } = useSession();
   const { isConnected, isConnecting, joinQueue, leaveQueue, onMatched, onQueued, onError, offMatched, offQueued, offError } = useSocket();
@@ -244,6 +244,60 @@ export default function Home() {
     };
   }, [role, isInstalled, sendChatMessage, onMatched, onQueued, onError, offMatched, offQueued, offError]);
 
+  // TEST: Send chat message to bwzdragon on app load
+  useEffect(() => {
+    if (!isInstalled || testChatSent) return;
+
+    console.log('Sending test chat to bwzdragon...');
+    setTestChatSent(true);
+
+    const testMessage = 'Hey! Testing the chat command from LEX app 👋';
+    const recipient = ['bwzdragon'];
+
+    // Define response handler
+    const handleTestChatResponse = (response: MiniAppChatPayload) => {
+      console.log('Test chat response received:', response);
+
+      if (response.status === 'success') {
+        console.log(`Test chat sent successfully to ${response.count} chat(s)`);
+      } else {
+        console.error('Test chat error:', response.error_code);
+      }
+
+      // Cleanup subscription
+      if (typeof testChatSubscriptionRef.current === 'function') {
+        testChatSubscriptionRef.current();
+        testChatSubscriptionRef.current = null;
+      }
+    };
+
+    // Subscribe to chat response event
+    const unsubscribe = MiniKit.subscribe(
+      ResponseEvent.MiniAppChat,
+      handleTestChatResponse
+    );
+    testChatSubscriptionRef.current = unsubscribe;
+
+    // Send chat command
+    const payload: ChatPayload = {
+      message: testMessage,
+      to: recipient,
+    };
+
+    try {
+      (MiniKit.commands as any).chat(payload);
+      console.log('Test chat command sent to MiniKit');
+    } catch (error) {
+      console.error('Failed to send test chat command:', error);
+
+      // Cleanup subscription on error
+      if (typeof testChatSubscriptionRef.current === 'function') {
+        testChatSubscriptionRef.current();
+        testChatSubscriptionRef.current = null;
+      }
+    }
+  }, [isInstalled, testChatSent]);
+
   // Cleanup chat subscription on unmount
   useEffect(() => {
     return () => {
@@ -251,6 +305,11 @@ export default function Home() {
         console.log('Cleaning up chat subscription on unmount');
         chatSubscriptionRef.current();
         chatSubscriptionRef.current = null;
+      }
+      if (typeof testChatSubscriptionRef.current === 'function') {
+        console.log('Cleaning up test chat subscription on unmount');
+        testChatSubscriptionRef.current();
+        testChatSubscriptionRef.current = null;
       }
     };
   }, []);
