@@ -40,10 +40,27 @@ export async function getUsersWithNotificationsEnabled(): Promise<string[]> {
 /**
  * Add a user to the notifications enabled list
  */
-export async function enableNotificationsForUser(walletAddress: string): Promise<void> {
+export async function enableNotificationsForUser(walletAddress: string): Promise<boolean> {
   try {
-    await redisClient.sAdd(NOTIFICATIONS_ENABLED_KEY, walletAddress);
-    console.log(`✓ Notifications enabled for user: ${walletAddress}`);
+    // Verify Redis is connected
+    if (!redisClient.isOpen) {
+      console.error('Redis client is not connected');
+      throw new Error('Database connection not available');
+    }
+
+    // Add user to the set
+    const added = await redisClient.sAdd(NOTIFICATIONS_ENABLED_KEY, walletAddress);
+    
+    // Verify the user was added successfully
+    const isMember = await redisClient.sIsMember(NOTIFICATIONS_ENABLED_KEY, walletAddress);
+    
+    if (isMember) {
+      console.log(`✓ Notifications enabled for user: ${walletAddress} (saved to database)`);
+      return true;
+    } else {
+      console.error(`✗ Failed to verify notification preference save for user: ${walletAddress}`);
+      throw new Error('Failed to save notification preference');
+    }
   } catch (error) {
     console.error('Error enabling notifications for user:', error);
     throw error;
@@ -53,10 +70,27 @@ export async function enableNotificationsForUser(walletAddress: string): Promise
 /**
  * Remove a user from the notifications enabled list
  */
-export async function disableNotificationsForUser(walletAddress: string): Promise<void> {
+export async function disableNotificationsForUser(walletAddress: string): Promise<boolean> {
   try {
-    await redisClient.sRem(NOTIFICATIONS_ENABLED_KEY, walletAddress);
-    console.log(`✓ Notifications disabled for user: ${walletAddress}`);
+    // Verify Redis is connected
+    if (!redisClient.isOpen) {
+      console.error('Redis client is not connected');
+      throw new Error('Database connection not available');
+    }
+
+    // Remove user from the set
+    const removed = await redisClient.sRem(NOTIFICATIONS_ENABLED_KEY, walletAddress);
+    
+    // Verify the user was removed successfully
+    const isMember = await redisClient.sIsMember(NOTIFICATIONS_ENABLED_KEY, walletAddress);
+    
+    if (!isMember) {
+      console.log(`✓ Notifications disabled for user: ${walletAddress} (saved to database)`);
+      return true;
+    } else {
+      console.error(`✗ Failed to verify notification preference removal for user: ${walletAddress}`);
+      throw new Error('Failed to remove notification preference');
+    }
   } catch (error) {
     console.error('Error disabling notifications for user:', error);
     throw error;
@@ -135,7 +169,7 @@ export async function sendNotifications(
         continue;
       }
 
-      const data: SendNotificationResponse = await response.json();
+      const data = await response.json() as SendNotificationResponse;
       
       if (data.result) {
         allResults.push(...data.result);

@@ -92,7 +92,12 @@ export class QueueService {
       return null;
     }
     
-    return JSON.parse(userJson) as UserData;
+    const userData = JSON.parse(userJson) as UserData;
+    
+    // Remove from active users since they're no longer in queue (they're matched)
+    await redisClient.sRem('active_users', userData.id);
+    
+    return userData;
   }
 
   /**
