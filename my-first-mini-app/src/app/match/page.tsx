@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { MessageCircle, User, Check, Loader2, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useMiniKit } from '@worldcoin/minikit-js/minikit-provider';
+import { useMiniKit } from 'minikit-js-dev-preview/minikit-provider';
 import {
   MiniKit,
   ResponseEvent,
