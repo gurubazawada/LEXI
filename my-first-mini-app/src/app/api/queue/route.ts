@@ -37,10 +37,25 @@ export async function POST(req: Request) {
     const user = {
       id: session?.user?.id || 'anon-' + Math.random().toString(36).substring(7),
       username: session?.user?.username || 'Anonymous',
+      walletAddress: session?.user?.walletAddress,
       role,
       language,
       timestamp: Date.now(),
     };
+
+    // Check if user already has a match (shouldn't join queue if matched)
+    if (matches.has(user.id)) {
+      const existingMatch = matches.get(user.id);
+      return NextResponse.json({
+        status: 'matched',
+        partner: existingMatch!.partner,
+        userId: user.id,
+      });
+    }
+
+    // Remove user from queue if they're already in it (prevent duplicates)
+    queue.learners = queue.learners.filter(u => u.id !== user.id);
+    queue.fluent = queue.fluent.filter(u => u.id !== user.id);
 
     // Add to appropriate queue
     if (role === 'learner') {
@@ -59,19 +74,17 @@ export async function POST(req: Request) {
     const match = matchQueue.find((u) => u.language === language);
 
     if (match) {
-      // Remove both users from queue
-      if (role === 'learner') {
-        queue.fluent = queue.fluent.filter(u => u.id !== match.id);
-        queue.learners = queue.learners.filter(u => u.id !== user.id);
-      } else {
-        queue.learners = queue.learners.filter(u => u.id !== match.id);
-        queue.fluent = queue.fluent.filter(u => u.id !== user.id);
-      }
+      // Remove both users from queue IMMEDIATELY when matched
+      queue.learners = queue.learners.filter(u => u.id !== user.id && u.id !== match.id);
+      queue.fluent = queue.fluent.filter(u => u.id !== user.id && u.id !== match.id);
+
+      console.log(`Match found! Removed ${user.username} (${role}) and ${match.username} (${match.role}) from queue`);
 
       // Store match for both users so they can both retrieve it
       const matchData = {
         partner: {
           username: match.username,
+          walletAddress: match.walletAddress,
           language: match.language,
           role: match.role,
         },
@@ -81,6 +94,7 @@ export async function POST(req: Request) {
       matches.set(user.id, {
         partner: {
           username: match.username,
+          walletAddress: match.walletAddress,
           language: match.language,
           role: match.role,
         },
@@ -90,6 +104,7 @@ export async function POST(req: Request) {
       matches.set(match.id, {
         partner: {
           username: user.username,
+          walletAddress: user.walletAddress,
           language: user.language,
           role: user.role,
         },
@@ -143,8 +158,12 @@ export async function GET(req: Request) {
       // Clean up old matches (older than 5 minutes)
       if (Date.now() - match.timestamp > 5 * 60 * 1000) {
         matches.delete(userId);
-        return NextResponse.json({ status: 'queued' });
+        return NextResponse.json({ status: 'idle' });
       }
+
+      // Ensure user is not in queue if they have a match
+      queue.learners = queue.learners.filter(u => u.id !== userId);
+      queue.fluent = queue.fluent.filter(u => u.id !== userId);
 
       return NextResponse.json({
         status: 'matched',
@@ -178,3 +197,48 @@ export async function GET(req: Request) {
   }
 }
 
+// DELETE endpoint to remove user from queue
+export async function DELETE(req: Request) {
+  try {
+    const session = await auth();
+    
+    // Mock user ID if session is missing (for dev/testing without wallet)
+    const userId = session?.user?.id || new URL(req.url).searchParams.get('userId');
+    
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'User ID required' },
+        { status: 400 }
+      );
+    }
+
+    // Remove user from both queues
+    const wasInLearnerQueue = queue.learners.some(u => u.id === userId);
+    const wasInFluentQueue = queue.fluent.some(u => u.id === userId);
+    
+    queue.learners = queue.learners.filter(u => u.id !== userId);
+    queue.fluent = queue.fluent.filter(u => u.id !== userId);
+    
+    // Also remove from matches if they have one
+    const hadMatch = matches.has(userId);
+    if (hadMatch) {
+      matches.delete(userId);
+    }
+
+    console.log(`User ${userId} removed from queue`);
+
+    return NextResponse.json({
+      status: 'removed',
+      message: 'Removed from queue',
+      wasInQueue: wasInLearnerQueue || wasInFluentQueue,
+      hadMatch,
+    });
+
+  } catch (error) {
+    console.error('Queue removal error:', error);
+    return NextResponse.json(
+      { error: 'Internal Server Error' },
+      { status: 500 }
+    );
+  }
+}

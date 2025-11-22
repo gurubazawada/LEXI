@@ -8,11 +8,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { MessageCircle, Globe, User, Check, Loader2, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { MiniKit } from '@worldcoin/minikit-js';
+import { useMiniKit } from '@worldcoin/minikit-js/minikit-provider';
 
 // Animation variants
 const containerVariants = {
   hidden: { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.5 } },
   exit: { opacity: 0, y: -20, transition: { duration: 0.3 } }
 };
 
@@ -28,14 +30,37 @@ const languages = [
 ];
 
 type QueueState = 'idle' | 'loading' | 'queued' | 'matched';
+type Partner = {
+  username?: string;
+  walletAddress?: string;
+  language?: string;
+  role?: string;
+};
+
+const buildChatUrl = (match: Partner | null) => {
+  if (!match) return 'https://world.org/chat';
+
+  const params = new URLSearchParams();
+  if (match.username) params.set('username', match.username);
+  if (match.walletAddress) params.set('address', match.walletAddress);
+  params.set('action', 'chat');
+
+  if (!params.has('username') && !params.has('address')) {
+    return 'https://world.org/chat';
+  }
+
+  return `https://world.org/profile?${params.toString()}`;
+};
 
 export default function Home() {
   const [role, setRole] = useState<'learner' | 'fluent'>('learner');
   const [language, setLanguage] = useState<string>('');
   const [status, setStatus] = useState<QueueState>('idle');
-  const [partner, setPartner] = useState<any>(null);
+  const [partner, setPartner] = useState<Partner | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
+  const [chatSent, setChatSent] = useState(false);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const { isInstalled } = useMiniKit();
 
   const handleEnterQueue = async () => {
     if (!language) return;
@@ -63,6 +88,10 @@ export default function Home() {
         if (pollingIntervalRef.current) {
           clearInterval(pollingIntervalRef.current);
           pollingIntervalRef.current = null;
+        }
+        // Send chat message from learner to fluent speaker
+        if (role === 'learner' && isInstalled) {
+          sendChatMessage(data.partner);
         }
       } else {
         setStatus('queued');
@@ -99,6 +128,10 @@ export default function Home() {
             clearInterval(pollingIntervalRef.current);
             pollingIntervalRef.current = null;
           }
+          // Send chat message from learner to fluent speaker
+          if (role === 'learner' && isInstalled) {
+            sendChatMessage(data.partner);
+          }
         } else if (data.status === 'idle') {
           // User was removed from queue (shouldn't happen, but handle it)
           setStatus('idle');
@@ -113,10 +146,75 @@ export default function Home() {
     }, 2000);
   };
 
-  const reset = () => {
+  const sendChatMessage = async (partnerData: Partner) => {
+    if (!isInstalled || !partnerData || chatSent) return;
+
+    try {
+      // Prepare recipient - use username or wallet address
+      const recipient: string[] = [];
+      if (partnerData.username) {
+        recipient.push(partnerData.username);
+      } else if (partnerData.walletAddress) {
+        recipient.push(partnerData.walletAddress);
+      }
+
+      // Create a friendly message
+      const languageLabel = languages.find(l => l.value === language)?.label || language;
+      const message = `Hi! We matched for ${languageLabel} practice. I'm a learner and you're a fluent guide. Let's start practicing! 🗣️`;
+
+      // Call MiniKit.commands.chat() - using type assertion as chat may not be in types yet
+      const chatCommand = (MiniKit.commands as any).chat;
+      if (!chatCommand) {
+        console.warn('Chat command not available in MiniKit');
+        return;
+      }
+
+      const payload = chatCommand({
+        message,
+        to: recipient.length > 0 ? recipient : undefined,
+      });
+
+      // Handle the response
+      if (payload && typeof payload.then === 'function') {
+        // If it returns a promise, await it
+        const result = await payload;
+        if (result?.status === 'success' || result?.finalPayload?.status === 'success') {
+          setChatSent(true);
+          console.log(`Chat sent successfully to ${result.finalPayload?.count || result.count || 0} chat(s)`);
+        } else {
+          console.warn('Chat command returned error:', result);
+        }
+      } else {
+        // If it's synchronous, check the result directly
+        if (payload?.status === 'success') {
+          setChatSent(true);
+          console.log(`Chat sent successfully to ${payload.count || 0} chat(s)`);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to send chat message:', error);
+      // Don't show error to user, just log it
+    }
+  };
+
+  const reset = async () => {
+    // Remove user from queue on backend
+    if (userId) {
+      try {
+        const url = `/api/queue?userId=${encodeURIComponent(userId)}`;
+        await fetch(url, {
+          method: 'DELETE',
+        });
+      } catch (error) {
+        console.error('Failed to remove from queue:', error);
+        // Continue with reset even if API call fails
+      }
+    }
+
     setStatus('idle');
     setPartner(null);
     setUserId(null);
+    setChatSent(false);
     // Stop polling
     if (pollingIntervalRef.current) {
       clearInterval(pollingIntervalRef.current);
@@ -132,6 +230,8 @@ export default function Home() {
       }
     };
   }, []);
+
+  const chatUrl = buildChatUrl(partner);
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 relative overflow-hidden">
@@ -301,9 +401,21 @@ export default function Home() {
                   </div>
 
                   <div className="w-full pt-4 space-y-3">
-                    <Button className="w-full h-12 text-base font-semibold rounded-xl shadow-lg shadow-primary/20">
-                      Start Chatting
+                    <Button 
+                      asChild
+                      className="w-full h-12 text-base font-semibold rounded-xl shadow-lg shadow-primary/20"
+                    >
+                      <a
+                        href={chatUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        Start Chatting
+                      </a>
                     </Button>
+                    <p className="text-xs text-center text-muted-foreground">
+                      Opens World Chat with {partner?.username || 'your match'}.
+                    </p>
                     <Button 
                       variant="ghost" 
                       onClick={reset}
