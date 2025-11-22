@@ -37,9 +37,12 @@ export const walletAuth = async () => {
   }
 
   await signIn('credentials', {
-    redirectTo: '/home',
+    redirect: false, // Don't force redirect, let the page handle it
     nonce,
     signedNonce,
     finalPayloadJson: JSON.stringify(result.finalPayload),
   });
+  
+  // Return success so the calling component can handle navigation
+  return { success: true };
 };
