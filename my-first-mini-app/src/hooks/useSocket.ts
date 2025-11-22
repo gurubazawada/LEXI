@@ -7,6 +7,7 @@ const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:4000'
 console.log('🔌 Socket.io Backend URL:', SOCKET_URL);
 
 export interface PartnerData {
+  id: string;
   username: string;
   walletAddress?: string;
   language: string;
