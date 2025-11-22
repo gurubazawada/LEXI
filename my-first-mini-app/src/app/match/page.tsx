@@ -12,7 +12,6 @@ import { useMiniKit } from 'minikit-js-dev-preview/minikit-provider';
 import {
   MiniKit,
   ResponseEvent,
-  type MiniAppChatPayload,
   type ChatPayload,
   ChatErrorCodes
 } from 'minikit-js-dev-preview';
@@ -137,38 +136,63 @@ export default function MatchPage() {
 
   const sendChatMessage = useCallback(
     async (partnerData: Partner) => {
-      if (!isInstalled || !partnerData || chatSent) return;
+      if (!isInstalled) {
+        console.error('❌ World App not installed');
+        setChatError('Please install World App to start chatting');
+        return;
+      }
+
+      if (!partnerData) {
+        console.error('❌ No partner data available');
+        setChatError('Partner data not available');
+        return;
+      }
+
+      if (chatSent) {
+        console.log('ℹ️ Chat already sent, skipping');
+        return;
+      }
 
       try {
+        console.log('📱 Partner data:', partnerData);
+
         const recipient: string[] = [];
         if (partnerData.username) {
+          console.log('✓ Using partner username:', partnerData.username);
           recipient.push(partnerData.username);
         } else if (partnerData.walletAddress) {
+          console.log('✓ Using partner wallet address:', partnerData.walletAddress);
           recipient.push(partnerData.walletAddress);
+        } else {
+          console.error('❌ No username or wallet address found for partner');
+          setChatError('Partner contact info not available');
+          return;
         }
 
         const languageLabel = languages.find(l => l.value === language)?.label || language;
         const message = `Hi! We matched for ${languageLabel} practice. I'm a ${role} and you're a ${partnerData.role}. Let's start practicing! 🗣️`;
 
-        const payload: MiniAppChatPayload = {
+        const payload: ChatPayload = {
           message,
-          to: recipient.length > 0 ? recipient : undefined,
+          to: recipient,
         };
 
-        console.log('📤 Sending chat message:', payload);
+        console.log('📤 Sending chat with payload:', payload);
 
         const { finalPayload } = await MiniKit.commandsAsync.chat(payload);
 
+        console.log('📥 Chat response:', finalPayload);
+
         if (finalPayload.status === 'success') {
           setChatSent(true);
-          console.log(`✅ Chat sent successfully to ${finalPayload.count || 0} chat(s)`);
+          console.log(`✅ Chat opened successfully with ${recipient[0]}`);
         } else {
           console.warn('⚠️ Chat command returned non-success:', finalPayload);
-          setChatError(finalPayload.error_code || 'Failed to send chat');
+          setChatError(finalPayload.error_code || 'Failed to open chat');
         }
       } catch (error: any) {
-        console.error('❌ Failed to send chat message:', error);
-        setChatError(error.message || 'Failed to send chat');
+        console.error('❌ Failed to open chat:', error);
+        setChatError(error.message || 'Failed to open chat');
       }
     },
     [isInstalled, chatSent, language, role]
@@ -187,12 +211,10 @@ export default function MatchPage() {
   useEffect(() => {
     const handleMatched = (data: MatchedPayload) => {
       console.log('Matched!', data);
+      console.log('Partner data received:', data.partner);
       setPartner(data.partner);
       setStatus('matched');
-
-      if (role === 'learner' && isInstalled) {
-        sendChatMessage(data.partner);
-      }
+      // Don't auto-send chat - let user click button
     };
 
     const handleQueued = (data: QueuedPayload) => {
@@ -214,7 +236,7 @@ export default function MatchPage() {
       offQueued(handleQueued);
       offError(handleError);
     };
-  }, [role, isInstalled, sendChatMessage, onMatched, onQueued, onError, offMatched, offQueued, offError]);
+  }, [onMatched, onQueued, onError, offMatched, offQueued, offError]);
 
   const chatUrl = buildChatUrl(partner);
 
@@ -407,30 +429,51 @@ export default function MatchPage() {
                   </div>
 
                   <div className="w-full pt-4 space-y-3">
-                    <Button 
-                      asChild
-                      className="w-full h-12 text-base font-semibold rounded-xl shadow-lg shadow-primary/20"
-                    >
-                      <a
-                        href={chatUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        Start Chatting
-                      </a>
-                    </Button>
-                    <p className="text-xs text-center text-muted-foreground">
-                      Opens World Chat with {partner?.username || 'your match'}.
-                    </p>
-                    
+                    {role === 'learner' ? (
+                      <>
+                        <Button
+                          onClick={() => partner && sendChatMessage(partner)}
+                          disabled={!isInstalled || chatSent}
+                          className="w-full h-12 text-base font-semibold rounded-xl shadow-lg shadow-primary/20"
+                        >
+                          {chatSent ? 'Chat Opened!' : 'Start Chatting'}
+                        </Button>
+                        <p className="text-xs text-center text-muted-foreground">
+                          {!isInstalled
+                            ? 'Install World App to start chatting'
+                            : chatSent
+                            ? `Chat opened with ${partner?.username || 'your match'}`
+                            : `Opens World Chat with ${partner?.username || 'your match'}`}
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <Button
+                          asChild
+                          className="w-full h-12 text-base font-semibold rounded-xl shadow-lg shadow-primary/20"
+                        >
+                          <a
+                            href={chatUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            Open Chat
+                          </a>
+                        </Button>
+                        <p className="text-xs text-center text-muted-foreground">
+                          Opens World Chat with {partner?.username || 'your match'}.
+                        </p>
+                      </>
+                    )}
+
                     {chatError && (
                       <p className="text-xs text-center text-destructive">
                         {chatError}
                       </p>
                     )}
-                    
-                    <Button 
-                      variant="ghost" 
+
+                    <Button
+                      variant="ghost"
                       onClick={reset}
                       className="w-full"
                     >
