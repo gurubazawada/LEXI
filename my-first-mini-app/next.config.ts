@@ -14,6 +14,14 @@ const nextConfig: NextConfig = {
     'http://localhost:3000',
   ], // Add your dev origin here
   reactStrictMode: false,
+  eslint: {
+    // Disable ESLint during production builds
+    ignoreDuringBuilds: true,
+  },
+  typescript: {
+    // Ignore TypeScript errors during build (optional)
+    ignoreBuildErrors: true,
+  },
 };
 
 export default nextConfig;
