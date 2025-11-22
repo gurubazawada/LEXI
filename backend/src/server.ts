@@ -12,11 +12,34 @@ dotenv.config();
 const app = express();
 const httpServer = createServer(app);
 
-// Configure CORS
-const corsOrigin = process.env.CORS_ORIGIN || 'http://localhost:3000';
+// Configure CORS - allow multiple origins for development
+const corsOrigins = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(',')
+  : ['http://localhost:3000', 'http://127.0.0.1:3000', 'https://unobsequiously-unruffled-jesse.ngrok-free.dev'];
+
 app.use(cors({
-  origin: corsOrigin,
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    // Check if origin is in allowed list
+    if (corsOrigins.some(allowed => origin.startsWith(allowed))) {
+      callback(null, true);
+    } else {
+      // For development, allow all localhost origins and ngrok domains
+      if (origin.includes('localhost') || 
+          origin.includes('127.0.0.1') || 
+          origin.includes('ngrok-free.dev') ||
+          origin.includes('ngrok.io')) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    }
+  },
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
 app.use(express.json());
@@ -24,7 +47,25 @@ app.use(express.json());
 // Socket.io setup with CORS
 const io = new Server(httpServer, {
   cors: {
-    origin: corsOrigin,
+    origin: (origin, callback) => {
+      // Allow requests with no origin
+      if (!origin) return callback(null, true);
+      
+      // Check if origin is in allowed list
+      if (corsOrigins.some(allowed => origin.startsWith(allowed))) {
+        callback(null, true);
+      } else {
+        // For development, allow all localhost origins and ngrok domains
+        if (origin.includes('localhost') || 
+            origin.includes('127.0.0.1') || 
+            origin.includes('ngrok-free.dev') ||
+            origin.includes('ngrok.io')) {
+          callback(null, true);
+        } else {
+          callback(new Error('Not allowed by CORS'));
+        }
+      }
+    },
     methods: ['GET', 'POST'],
     credentials: true,
   },
@@ -93,7 +134,7 @@ async function startServer() {
     httpServer.listen(PORT, () => {
       console.log(`\n🚀 Server running on port ${PORT}`);
       console.log(`📡 Socket.io listening for connections`);
-      console.log(`🌐 CORS enabled for: ${corsOrigin}`);
+      console.log(`🌐 CORS enabled for: ${corsOrigins.join(', ')}`);
       console.log(`\n✓ Ready to accept connections\n`);
     });
   } catch (error) {
