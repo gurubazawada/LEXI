@@ -1,0 +1,17 @@
+{
+  "name": "lex",
+  "version": "1.0.0",
+  "description": "Language Exchange Platform",
+  "private": true,
+  "scripts": {
+    "dev:backend": "cd backend && npm run dev",
+    "dev:frontend": "cd my-first-mini-app && npm run dev",
+    "install:all": "cd backend && npm install && cd ../my-first-mini-app && npm install --legacy-peer-deps",
+    "build:backend": "cd backend && npm run build",
+    "build:frontend": "cd my-first-mini-app && npm run build"
+  },
+  "keywords": ["language-learning", "matching", "socket.io", "redis"],
+  "author": "",
+  "license": "MIT"
+}
+

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,6 +10,8 @@ import { MessageCircle, Globe, User, Check, Loader2, Sparkles } from 'lucide-rea
 import { cn } from '@/lib/utils';
 import { MiniKit } from '@worldcoin/minikit-js';
 import { useMiniKit } from '@worldcoin/minikit-js/minikit-provider';
+import { useSocket } from '@/hooks/useSocket';
+import type { MatchedPayload, QueuedPayload, ErrorPayload } from '@/hooks/useSocket';
 
 // Animation variants
 const containerVariants = {
@@ -59,92 +61,30 @@ export default function Home() {
   const [partner, setPartner] = useState<Partner | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [chatSent, setChatSent] = useState(false);
-  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const { isInstalled } = useMiniKit();
+  const { isConnected, isConnecting, joinQueue, leaveQueue, onMatched, onQueued, onError, offMatched, offQueued, offError } = useSocket();
 
-  const handleEnterQueue = async () => {
-    if (!language) return;
+  const handleEnterQueue = useCallback(() => {
+    if (!language || !isConnected) {
+      console.error('Cannot join queue: missing language or not connected');
+      return;
+    }
 
     setStatus('loading');
 
-    try {
-      const res = await fetch('/api/queue', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ role, language }),
-      });
-      
-      const data = await res.json();
+    // Generate or use existing user ID
+    const finalUserId = userId || `anon-${Date.now()}`;
+    setUserId(finalUserId);
 
-      // Store user ID for polling (if provided in response)
-      if (data.userId) {
-        setUserId(data.userId);
-      }
-
-      if (data.status === 'matched') {
-        setPartner(data.partner);
-        setStatus('matched');
-        // Stop polling if it was running
-        if (pollingIntervalRef.current) {
-          clearInterval(pollingIntervalRef.current);
-          pollingIntervalRef.current = null;
-        }
-        // Send chat message from learner to fluent speaker
-        if (role === 'learner' && isInstalled) {
-          sendChatMessage(data.partner);
-        }
-      } else {
-        setStatus('queued');
-        // Start polling for matches
-        startPolling();
-      }
-    } catch (error) {
-      console.error('Failed to join queue:', error);
-      setStatus('idle');
-    }
-  };
-
-  const startPolling = () => {
-    // Clear any existing polling
-    if (pollingIntervalRef.current) {
-      clearInterval(pollingIntervalRef.current);
-    }
-
-    // Poll every 2 seconds for matches
-    pollingIntervalRef.current = setInterval(async () => {
-      try {
-        const url = userId 
-          ? `/api/queue?userId=${encodeURIComponent(userId)}`
-          : '/api/queue';
-        
-        const res = await fetch(url);
-        const data = await res.json();
-
-        if (data.status === 'matched') {
-          setPartner(data.partner);
-          setStatus('matched');
-          // Stop polling
-          if (pollingIntervalRef.current) {
-            clearInterval(pollingIntervalRef.current);
-            pollingIntervalRef.current = null;
-          }
-          // Send chat message from learner to fluent speaker
-          if (role === 'learner' && isInstalled) {
-            sendChatMessage(data.partner);
-          }
-        } else if (data.status === 'idle') {
-          // User was removed from queue (shouldn't happen, but handle it)
-          setStatus('idle');
-          if (pollingIntervalRef.current) {
-            clearInterval(pollingIntervalRef.current);
-            pollingIntervalRef.current = null;
-          }
-        }
-      } catch (error) {
-        console.error('Polling error:', error);
-      }
-    }, 2000);
-  };
+    // Join queue via Socket.io
+    joinQueue({
+      role,
+      language,
+      userId: finalUserId,
+      username: 'Anonymous', // TODO: Get from session if available
+      walletAddress: undefined, // TODO: Get from session if available
+    });
+  }, [language, isConnected, userId, role, joinQueue]);
 
   const sendChatMessage = async (partnerData: Partner) => {
     if (!isInstalled || !partnerData || chatSent) return;
@@ -197,39 +137,53 @@ export default function Home() {
     }
   };
 
-  const reset = async () => {
-    // Remove user from queue on backend
-    if (userId) {
-      try {
-        const url = `/api/queue?userId=${encodeURIComponent(userId)}`;
-        await fetch(url, {
-          method: 'DELETE',
-        });
-      } catch (error) {
-        console.error('Failed to remove from queue:', error);
-        // Continue with reset even if API call fails
-      }
-    }
+  const reset = useCallback(() => {
+    // Leave queue via Socket.io
+    leaveQueue();
 
     setStatus('idle');
     setPartner(null);
     setUserId(null);
     setChatSent(false);
-    // Stop polling
-    if (pollingIntervalRef.current) {
-      clearInterval(pollingIntervalRef.current);
-      pollingIntervalRef.current = null;
-    }
-  };
+  }, [leaveQueue]);
 
-  // Cleanup polling on unmount
+  // Setup Socket.io event listeners
   useEffect(() => {
-    return () => {
-      if (pollingIntervalRef.current) {
-        clearInterval(pollingIntervalRef.current);
+    const handleMatched = (data: MatchedPayload) => {
+      console.log('Matched!', data);
+      setPartner(data.partner);
+      setStatus('matched');
+      setUserId(data.userId);
+
+      // Send chat message from learner to fluent speaker
+      if (role === 'learner' && isInstalled) {
+        sendChatMessage(data.partner);
       }
     };
-  }, []);
+
+    const handleQueued = (data: QueuedPayload) => {
+      console.log('Queued:', data);
+      setStatus('queued');
+      setUserId(data.userId);
+    };
+
+    const handleError = (data: ErrorPayload) => {
+      console.error('Socket error:', data.message);
+      setStatus('idle');
+    };
+
+    // Register event listeners
+    onMatched(handleMatched);
+    onQueued(handleQueued);
+    onError(handleError);
+
+    // Cleanup listeners on unmount
+    return () => {
+      offMatched(handleMatched);
+      offQueued(handleQueued);
+      offError(handleError);
+    };
+  }, [role, isInstalled, onMatched, onQueued, onError, offMatched, offQueued, offError]);
 
   const chatUrl = buildChatUrl(partner);
 
@@ -322,12 +276,19 @@ export default function Home() {
                   {/* Action Button */}
                   <Button 
                     onClick={handleEnterQueue} 
-                    disabled={!language}
+                    disabled={!language || !isConnected || isConnecting}
                     className="w-full h-12 text-base font-semibold rounded-xl shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all duration-300"
                     size="lg"
                   >
-                    Enter Queue
+                    {isConnecting ? 'Connecting...' : !isConnected ? 'Disconnected' : 'Enter Queue'}
                   </Button>
+                  
+                  {/* Connection Status */}
+                  {!isConnected && !isConnecting && (
+                    <p className="text-xs text-center text-destructive">
+                      Unable to connect to matching server
+                    </p>
+                  )}
                 </CardContent>
               </Card>
             </motion.div>
