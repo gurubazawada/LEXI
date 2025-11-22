@@ -1,11 +1,10 @@
 'use client';
 
 import { useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { MessageCircle, Loader2, Globe, Users } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { AuthButton } from '@/components/AuthButton';
+import { ChatLines, Globe, Group } from 'iconoir-react';
 
 export default function Home() {
   const router = useRouter();
@@ -21,93 +20,70 @@ export default function Home() {
   // Show loading while checking authentication
   if (status === 'loading') {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="min-h-screen bg-white dark:bg-black flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-black dark:border-white border-t-transparent dark:border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
   // Show landing page for unauthenticated users
   return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 relative overflow-hidden">
-      {/* Background decorative elements */}
-      <div className="absolute top-0 left-0 w-full h-64 bg-gradient-to-b from-primary/5 to-transparent -z-10" />
-      <div className="absolute -top-20 -right-20 w-96 h-96 bg-primary/5 rounded-full blur-3xl -z-10" />
-      <div className="absolute -bottom-20 -left-20 w-72 h-72 bg-secondary/50 rounded-full blur-3xl -z-10" />
-
-      <div className="w-full max-w-md space-y-8 z-10">
-
+    <div className="min-h-screen bg-white dark:bg-black flex flex-col items-center justify-center p-6">
+      <div className="w-full max-w-md space-y-8">
+        
         {/* Header / Brand */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-center space-y-4"
-        >
-          <div className="inline-flex items-center justify-center w-24 h-24 rounded-3xl bg-gradient-to-br from-primary/20 to-primary/5 mb-4 shadow-lg border border-primary/10 backdrop-blur-sm">
-            <MessageCircle className="h-14 w-14 text-primary" />
+        <div className="text-center space-y-4">
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-black dark:bg-white mb-4">
+            <ChatLines className="h-10 w-10 text-white dark:text-black" strokeWidth={2} />
           </div>
-          <h1 className="text-5xl font-bold text-foreground tracking-tight">PairTalk</h1>
-          <p className="text-muted-foreground text-lg font-medium">
+          <h1 className="text-4xl font-bold text-black dark:text-white">Lexi</h1>
+          <p className="text-gray-600 dark:text-gray-400 text-base">
             Connect with language partners worldwide
           </p>
-        </motion.div>
+        </div>
 
         {/* Features */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="space-y-4"
-        >
-          <div className="flex items-start gap-3 p-4 rounded-xl bg-card/50 backdrop-blur-sm border border-border/50">
-            <Globe className="h-6 w-6 text-primary mt-0.5 flex-shrink-0" />
+                  <div className="space-y-3">
+          <div className="flex items-start gap-3 p-4 rounded-lg bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800">
+            <Globe className="h-5 w-5 text-black dark:text-white mt-0.5 flex-shrink-0" strokeWidth={2} />
             <div>
-              <h3 className="font-semibold text-foreground">Practice Any Language</h3>
-              <p className="text-sm text-muted-foreground">
+              <h3 className="font-semibold text-black dark:text-white text-sm">Practice Any Language</h3>
+              <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
                 Match with native speakers for real conversation practice
               </p>
-            </div>
-          </div>
+                    </div>
+                  </div>
 
-          <div className="flex items-start gap-3 p-4 rounded-xl bg-card/50 backdrop-blur-sm border border-border/50">
-            <Users className="h-6 w-6 text-primary mt-0.5 flex-shrink-0" />
+          <div className="flex items-start gap-3 p-4 rounded-lg bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800">
+            <Group className="h-5 w-5 text-black dark:text-white mt-0.5 flex-shrink-0" strokeWidth={2} />
             <div>
-              <h3 className="font-semibold text-foreground">Instant Matching</h3>
-              <p className="text-sm text-muted-foreground">
+              <h3 className="font-semibold text-black dark:text-white text-sm">Instant Matching</h3>
+              <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
                 Get paired with partners in seconds, no waiting
               </p>
-            </div>
-          </div>
-
-          <div className="flex items-start gap-3 p-4 rounded-xl bg-card/50 backdrop-blur-sm border border-border/50">
-            <MessageCircle className="h-6 w-6 text-primary mt-0.5 flex-shrink-0" />
+                    </div>
+                  </div>
+                  
+          <div className="flex items-start gap-3 p-4 rounded-lg bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800">
+            <ChatLines className="h-5 w-5 text-black dark:text-white mt-0.5 flex-shrink-0" strokeWidth={2} />
             <div>
-              <h3 className="font-semibold text-foreground">Secure & Private</h3>
-              <p className="text-sm text-muted-foreground">
+              <h3 className="font-semibold text-black dark:text-white text-sm">Secure & Private</h3>
+              <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
                 Verified users with World ID authentication
-              </p>
-            </div>
+                    </p>
+                  </div>
           </div>
-        </motion.div>
-
+                  </div>
+                  
         {/* Auth Button */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-          className="pt-4"
-        >
+        <div className="pt-4">
           <AuthButton />
-        </motion.div>
+                  </div>
 
         {/* Footer */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1, transition: { delay: 0.6 } }}
-          className="text-center text-sm text-muted-foreground/60"
-        >
-          <p>Powered by Worldcoin • Secure • Private</p>
-        </motion.div>
+        <div className="text-center text-xs text-gray-500 dark:text-gray-600">
+          <p>Powered by Worldcoin</p>
+        </div>
       </div>
     </div>
   );

@@ -1,9 +1,10 @@
 'use client';
 import { walletAuth } from '@/auth/wallet';
-import { Button } from '@/components/ui/button';
+import { Button } from '@worldcoin/mini-apps-ui-kit-react';
 import { useMiniKit } from 'minikit-js-dev-preview/minikit-provider';
-import { useCallback, useEffect, useState } from 'react';
-import { Loader2, Wallet } from 'lucide-react';
+import { useSession } from 'next-auth/react';
+import { useCallback, useState } from 'react';
+import { Wallet } from 'iconoir-react';
 
 /**
  * This component handles wallet authentication using Worldcoin MiniKit
@@ -13,6 +14,7 @@ export const AuthButton = () => {
   const [isPending, setIsPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { isInstalled } = useMiniKit();
+  const { data: session } = useSession();
 
   const onClick = useCallback(async () => {
     if (!isInstalled || isPending) {
@@ -32,27 +34,9 @@ export const AuthButton = () => {
     setIsPending(false);
   }, [isInstalled, isPending]);
 
-  useEffect(() => {
-    const authenticate = async () => {
-      if (isInstalled && !isPending) {
-        setIsPending(true);
-        try {
-          await walletAuth();
-        } catch (err) {
-          console.error('Auto wallet authentication error', err);
-        } finally {
-          setIsPending(false);
-        }
-      }
-    };
-
-    authenticate();
-  }, [isInstalled, isPending]);
-
   if (!isInstalled) {
     return (
-      <Button disabled variant="outline" size="lg">
-        <Wallet className="mr-2 h-4 w-4" />
+      <Button disabled variant="secondary">
         World App Required
       </Button>
     );
@@ -63,23 +47,12 @@ export const AuthButton = () => {
       <Button
         onClick={onClick}
         disabled={isPending}
-        size="lg"
-        className="w-full"
+        variant="primary"
       >
-        {isPending ? (
-          <>
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            Connecting...
-          </>
-        ) : (
-          <>
-            <Wallet className="mr-2 h-4 w-4" />
-            Connect Wallet
-          </>
-        )}
+        {isPending ? 'Connecting...' : 'Connect Wallet'}
       </Button>
       {error && (
-        <p className="text-sm text-destructive text-center">{error}</p>
+        <p className="text-sm text-red-500 text-center">{error}</p>
       )}
     </div>
   );
