@@ -40,6 +40,13 @@ npm run build
 npm start
 ```
 
+## Seeding Conversation Prompts
+
+Prefill Redis with 100 starter prompts per supported language (en, es, de, fr, jp, pt, it, zh):
+```bash
+npm run seed:prompts
+```
+
 ## Architecture
 
 ### Services
@@ -124,4 +131,3 @@ Make sure to:
 1. Set environment variables
 2. Provision a Redis instance
 3. Update CORS_ORIGIN to your frontend URL
-
