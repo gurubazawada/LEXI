@@ -3,7 +3,7 @@ import {
   MiniAppWalletAuthSuccessPayload,
   MiniKit,
   verifySiweMessage,
-} from '@worldcoin/minikit-js';
+} from 'minikit-js-dev-preview';
 import NextAuth, { type DefaultSession } from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
 
@@ -62,12 +62,17 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           console.log('Invalid final payload');
           return null;
         }
-        // Optionally, fetch the user info from your own database
+        // Fetch the user info from World ID
         const userInfo = await MiniKit.getUserInfo(finalPayload.address);
+        
+        console.log('🌍 World ID User Info:', userInfo);
+        console.log('📧 Wallet Address:', finalPayload.address);
 
         return {
           id: finalPayload.address,
-          ...userInfo,
+          walletAddress: finalPayload.address,
+          username: userInfo?.username || finalPayload.address.slice(0, 8),
+          profilePictureUrl: userInfo?.profilePictureUrl || '',
         };
       },
     }),
@@ -86,7 +91,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     session: async ({ session, token }) => {
       if (token.userId) {
         session.user.id = token.userId as string;
-        session.user.walletAddress = token.address as string;
+        session.user.walletAddress = token.walletAddress as string;
         session.user.username = token.username as string;
         session.user.profilePictureUrl = token.profilePictureUrl as string;
       }

@@ -2,7 +2,7 @@
 
 import TestContractABI from '@/abi/TestContract.json';
 import { Button, LiveFeedback } from '@worldcoin/mini-apps-ui-kit-react';
-import { MiniKit } from '@worldcoin/minikit-js';
+import { MiniKit } from 'minikit-js-dev-preview';
 import { useWaitForTransactionReceipt } from '@worldcoin/minikit-react';
 import { useEffect, useState } from 'react';
 import { createPublicClient, http } from 'viem';
