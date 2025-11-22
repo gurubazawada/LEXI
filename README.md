@@ -1,4 +1,4 @@
-# LEX
+# LEXI
 
 Project initialized.
 
