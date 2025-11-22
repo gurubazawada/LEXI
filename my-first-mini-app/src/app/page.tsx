@@ -6,11 +6,20 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { MessageCircle, Globe, User, Check, Loader2, Sparkles } from 'lucide-react';
+import { MessageCircle, User, Check, Loader2, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { MiniKit } from '@worldcoin/minikit-js';
+// import { MiniKit } from '@worldcoin/minikit-js';
 import { useMiniKit } from '@worldcoin/minikit-js/minikit-provider';
+import {
+  MiniKit,
+  // useMiniKit,
+  ResponseEvent,
+  type MiniAppChatPayload,
+  type ChatPayload,
+  ChatErrorCodes
+} from 'minikit-js-dev-preview';
 import { useSession } from 'next-auth/react';
+
 import { useSocket } from '@/hooks/useSocket';
 import type { MatchedPayload, QueuedPayload, ErrorPayload } from '@/hooks/useSocket';
 
@@ -61,6 +70,8 @@ export default function Home() {
   const [status, setStatus] = useState<QueueState>('idle');
   const [partner, setPartner] = useState<Partner | null>(null);
   const [chatSent, setChatSent] = useState(false);
+  const [chatError, setChatError] = useState<string | null>(null);
+  const chatSubscriptionRef = useRef<(() => void) | void | null>(null);
   const { isInstalled } = useMiniKit();
   const { data: session } = useSession();
   const { isConnected, isConnecting, joinQueue, leaveQueue, onMatched, onQueued, onError, offMatched, offQueued, offError } = useSocket();
@@ -93,64 +104,108 @@ export default function Home() {
     });
   }, [language, isConnected, session, role, joinQueue]);
 
-  const sendChatMessage = async (partnerData: Partner) => {
+  const sendChatMessage = useCallback((partnerData: Partner) => {
+    // Validation checks
     if (!isInstalled || !partnerData || chatSent) return;
 
-    try {
-      // Prepare recipient - use username or wallet address
-      const recipient: string[] = [];
-      if (partnerData.username) {
-        recipient.push(partnerData.username);
-      } else if (partnerData.walletAddress) {
-        recipient.push(partnerData.walletAddress);
-      }
-
-      // Create a friendly message
-      const languageLabel = languages.find(l => l.value === language)?.label || language;
-      const message = `Hi! We matched for ${languageLabel} practice. I'm a learner and you're a fluent guide. Let's start practicing! 🗣️`;
-
-      // Call MiniKit.commands.chat() - using type assertion as chat may not be in types yet
-      const chatCommand = (MiniKit.commands as any).chat;
-      if (!chatCommand) {
-        console.warn('Chat command not available in MiniKit');
-        return;
-      }
-
-      const payload = chatCommand({
-        message,
-        to: recipient.length > 0 ? recipient : undefined,
-      });
-
-      // Handle the response
-      if (payload && typeof payload.then === 'function') {
-        // If it returns a promise, await it
-        const result = await payload;
-        if (result?.status === 'success' || result?.finalPayload?.status === 'success') {
-          setChatSent(true);
-          console.log(`Chat sent successfully to ${result.finalPayload?.count || result.count || 0} chat(s)`);
-        } else {
-          console.warn('Chat command returned error:', result);
-        }
-      } else {
-        // If it's synchronous, check the result directly
-        if (payload?.status === 'success') {
-          setChatSent(true);
-          console.log(`Chat sent successfully to ${payload.count || 0} chat(s)`);
-        }
-      }
-    } catch (error) {
-      console.error('Failed to send chat message:', error);
-      // Don't show error to user, just log it
+    // Validate recipient data
+    if (!partnerData.username && !partnerData.walletAddress) {
+      console.error('Partner has no username or wallet address');
+      setChatError('Unable to send chat. Use the button below to chat manually.');
+      return;
     }
-  };
+
+    // Clear any previous error
+    setChatError(null);
+
+    // Create recipient array
+    const recipient: string[] = [];
+    if (partnerData.username) {
+      recipient.push(partnerData.username);
+    } else if (partnerData.walletAddress) {
+      recipient.push(partnerData.walletAddress);
+    }
+
+    // Create chat message
+    const languageLabel = languages.find(l => l.value === language)?.label || language;
+    const message = `Hi! We matched for ${languageLabel} practice. I'm a learner and you're a fluent guide. Let's start practicing! 🗣️`;
+
+    // Define response handler
+    const handleChatResponse = (response: MiniAppChatPayload) => {
+      console.log('Chat response received:', response);
+
+      if (response.status === 'success') {
+        setChatSent(true);
+        console.log(`Chat sent successfully to ${response.count} chat(s)`);
+      } else {
+        // Handle error cases
+        let errorMessage: string;
+        switch (response.error_code) {
+          case ChatErrorCodes.UserRejected:
+            errorMessage = 'Chat prompt was closed';
+            break;
+          case ChatErrorCodes.SendFailed:
+            errorMessage = 'Unable to send chat. Use the button below to chat manually.';
+            break;
+          case ChatErrorCodes.GenericError:
+          default:
+            errorMessage = 'Failed to send chat message';
+            break;
+        }
+        setChatError(errorMessage);
+        console.error('Chat error:', response.error_code, errorMessage);
+      }
+
+      // Cleanup subscription
+      if (typeof chatSubscriptionRef.current === 'function') {
+        chatSubscriptionRef.current();
+        chatSubscriptionRef.current = null;
+      }
+    };
+
+    // Subscribe to chat response event
+    const unsubscribe = MiniKit.subscribe(
+      ResponseEvent.MiniAppChat,
+      handleChatResponse
+    );
+    chatSubscriptionRef.current = unsubscribe;
+
+    // Send chat command
+    const payload: ChatPayload = {
+      message,
+      to: recipient.length > 0 ? recipient : undefined,
+    };
+
+    try {
+      (MiniKit.commands as any).chat(payload);
+      console.log('Chat command sent to MiniKit');
+    } catch (error) {
+      console.error('Failed to send chat command:', error);
+      setChatError('Failed to send chat message');
+
+      // Cleanup subscription on error
+      if (typeof chatSubscriptionRef.current === 'function') {
+        chatSubscriptionRef.current();
+        chatSubscriptionRef.current = null;
+      }
+    }
+  }, [isInstalled, chatSent, language]);
 
   const reset = useCallback(() => {
+    // Cleanup chat subscription if active
+    if (typeof chatSubscriptionRef.current === 'function') {
+      chatSubscriptionRef.current();
+      chatSubscriptionRef.current = null;
+    }
+
     // Leave queue via Socket.io
     leaveQueue();
 
+    // Reset all state
     setStatus('idle');
     setPartner(null);
     setChatSent(false);
+    setChatError(null);
   }, [leaveQueue]);
 
   // Setup Socket.io event listeners
@@ -187,7 +242,18 @@ export default function Home() {
       offQueued(handleQueued);
       offError(handleError);
     };
-  }, [role, isInstalled, onMatched, onQueued, onError, offMatched, offQueued, offError]);
+  }, [role, isInstalled, sendChatMessage, onMatched, onQueued, onError, offMatched, offQueued, offError]);
+
+  // Cleanup chat subscription on unmount
+  useEffect(() => {
+    return () => {
+      if (typeof chatSubscriptionRef.current === 'function') {
+        console.log('Cleaning up chat subscription on unmount');
+        chatSubscriptionRef.current();
+        chatSubscriptionRef.current = null;
+      }
+    };
+  }, []);
 
   const chatUrl = buildChatUrl(partner);
 
@@ -364,6 +430,13 @@ export default function Home() {
                       You are paired with <span className="font-semibold text-primary">{partner?.username || 'Partner'}</span>
                     </p>
                   </div>
+
+                  {/* Chat Error Display */}
+                  {chatError && (
+                    <div className="w-full px-4 py-3 rounded-lg bg-destructive/10 border border-destructive/20">
+                      <p className="text-sm text-destructive text-center">{chatError}</p>
+                    </div>
+                  )}
 
                   <div className="w-full pt-4 space-y-3">
                     <Button 
