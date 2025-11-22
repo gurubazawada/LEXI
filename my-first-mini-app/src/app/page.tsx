@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { MessageCircle, Globe, User, Check, Loader2, Sparkles } from 'lucide-react';
+import { MessageCircle, User, Check, Loader2, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 // import { MiniKit } from '@worldcoin/minikit-js';
 import { useMiniKit } from '@worldcoin/minikit-js/minikit-provider';
@@ -71,7 +71,7 @@ export default function Home() {
   const [partner, setPartner] = useState<Partner | null>(null);
   const [chatSent, setChatSent] = useState(false);
   const [chatError, setChatError] = useState<string | null>(null);
-  const chatSubscriptionRef = useRef<(() => void) | null>(null);
+  const chatSubscriptionRef = useRef<(() => void) | void | null>(null);
   const { isInstalled } = useMiniKit();
   const { data: session } = useSession();
   const { isConnected, isConnecting, joinQueue, leaveQueue, onMatched, onQueued, onError, offMatched, offQueued, offError } = useSocket();
@@ -157,7 +157,7 @@ export default function Home() {
       }
 
       // Cleanup subscription
-      if (chatSubscriptionRef.current) {
+      if (typeof chatSubscriptionRef.current === 'function') {
         chatSubscriptionRef.current();
         chatSubscriptionRef.current = null;
       }
@@ -184,7 +184,7 @@ export default function Home() {
       setChatError('Failed to send chat message');
 
       // Cleanup subscription on error
-      if (chatSubscriptionRef.current) {
+      if (typeof chatSubscriptionRef.current === 'function') {
         chatSubscriptionRef.current();
         chatSubscriptionRef.current = null;
       }
@@ -193,7 +193,7 @@ export default function Home() {
 
   const reset = useCallback(() => {
     // Cleanup chat subscription if active
-    if (chatSubscriptionRef.current) {
+    if (typeof chatSubscriptionRef.current === 'function') {
       chatSubscriptionRef.current();
       chatSubscriptionRef.current = null;
     }
@@ -247,7 +247,7 @@ export default function Home() {
   // Cleanup chat subscription on unmount
   useEffect(() => {
     return () => {
-      if (chatSubscriptionRef.current) {
+      if (typeof chatSubscriptionRef.current === 'function') {
         console.log('Cleaning up chat subscription on unmount');
         chatSubscriptionRef.current();
         chatSubscriptionRef.current = null;
