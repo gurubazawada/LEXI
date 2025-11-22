@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -34,6 +34,8 @@ export default function Home() {
   const [language, setLanguage] = useState<string>('');
   const [status, setStatus] = useState<QueueState>('idle');
   const [partner, setPartner] = useState<any>(null);
+  const [userId, setUserId] = useState<string | null>(null);
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const handleEnterQueue = async () => {
     if (!language) return;
@@ -49,11 +51,23 @@ export default function Home() {
       
       const data = await res.json();
 
+      // Store user ID for polling (if provided in response)
+      if (data.userId) {
+        setUserId(data.userId);
+      }
+
       if (data.status === 'matched') {
         setPartner(data.partner);
         setStatus('matched');
+        // Stop polling if it was running
+        if (pollingIntervalRef.current) {
+          clearInterval(pollingIntervalRef.current);
+          pollingIntervalRef.current = null;
+        }
       } else {
         setStatus('queued');
+        // Start polling for matches
+        startPolling();
       }
     } catch (error) {
       console.error('Failed to join queue:', error);
@@ -61,10 +75,63 @@ export default function Home() {
     }
   };
 
+  const startPolling = () => {
+    // Clear any existing polling
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+    }
+
+    // Poll every 2 seconds for matches
+    pollingIntervalRef.current = setInterval(async () => {
+      try {
+        const url = userId 
+          ? `/api/queue?userId=${encodeURIComponent(userId)}`
+          : '/api/queue';
+        
+        const res = await fetch(url);
+        const data = await res.json();
+
+        if (data.status === 'matched') {
+          setPartner(data.partner);
+          setStatus('matched');
+          // Stop polling
+          if (pollingIntervalRef.current) {
+            clearInterval(pollingIntervalRef.current);
+            pollingIntervalRef.current = null;
+          }
+        } else if (data.status === 'idle') {
+          // User was removed from queue (shouldn't happen, but handle it)
+          setStatus('idle');
+          if (pollingIntervalRef.current) {
+            clearInterval(pollingIntervalRef.current);
+            pollingIntervalRef.current = null;
+          }
+        }
+      } catch (error) {
+        console.error('Polling error:', error);
+      }
+    }, 2000);
+  };
+
   const reset = () => {
     setStatus('idle');
     setPartner(null);
+    setUserId(null);
+    // Stop polling
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+      pollingIntervalRef.current = null;
+    }
   };
+
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+      }
+    };
+  }, []);
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 relative overflow-hidden">
