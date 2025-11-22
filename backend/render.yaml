@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: lexi-backend
+    env: node
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 4000
+      - key: REDIS_URL
+        sync: false
+      - key: CORS_ORIGIN
+        sync: false
