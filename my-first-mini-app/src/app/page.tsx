@@ -8,14 +8,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { MessageCircle, Globe, User, Check, Loader2, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
+// import { MiniKit } from '@worldcoin/minikit-js';
+import { useMiniKit } from '@worldcoin/minikit-js/minikit-provider';
 import {
   MiniKit,
-  useMiniKit,
+  // useMiniKit,
   ResponseEvent,
   type MiniAppChatPayload,
   type ChatPayload,
   ChatErrorCodes
 } from 'minikit-js-dev-preview';
+import { useSession } from 'next-auth/react';
+
 import { useSocket } from '@/hooks/useSocket';
 import type { MatchedPayload, QueuedPayload, ErrorPayload } from '@/hooks/useSocket';
 
@@ -65,11 +69,11 @@ export default function Home() {
   const [language, setLanguage] = useState<string>('');
   const [status, setStatus] = useState<QueueState>('idle');
   const [partner, setPartner] = useState<Partner | null>(null);
-  const [userId, setUserId] = useState<string | null>(null);
   const [chatSent, setChatSent] = useState(false);
   const [chatError, setChatError] = useState<string | null>(null);
   const chatSubscriptionRef = useRef<(() => void) | null>(null);
   const { isInstalled } = useMiniKit();
+  const { data: session } = useSession();
   const { isConnected, isConnecting, joinQueue, leaveQueue, onMatched, onQueued, onError, offMatched, offQueued, offError } = useSocket();
 
   const handleEnterQueue = useCallback(() => {
@@ -78,21 +82,27 @@ export default function Home() {
       return;
     }
 
+    // Get user ID from session (walletAddress) or fallback to anonymous
+    const finalUserId = session?.user?.walletAddress || `anon-${Date.now()}`;
+    const username = session?.user?.username || 'Anonymous';
+    const walletAddress = session?.user?.walletAddress;
+
+    if (!finalUserId) {
+      console.error('Cannot join queue: no user ID available');
+      return;
+    }
+
     setStatus('loading');
 
-    // Generate or use existing user ID
-    const finalUserId = userId || `anon-${Date.now()}`;
-    setUserId(finalUserId);
-
-    // Join queue via Socket.io
+    // Join queue via Socket.io with authenticated user data
     joinQueue({
       role,
       language,
       userId: finalUserId,
-      username: 'Anonymous', // TODO: Get from session if available
-      walletAddress: undefined, // TODO: Get from session if available
+      username,
+      walletAddress,
     });
-  }, [language, isConnected, userId, role, joinQueue]);
+  }, [language, isConnected, session, role, joinQueue]);
 
   const sendChatMessage = useCallback((partnerData: Partner) => {
     // Validation checks
@@ -194,7 +204,6 @@ export default function Home() {
     // Reset all state
     setStatus('idle');
     setPartner(null);
-    setUserId(null);
     setChatSent(false);
     setChatError(null);
   }, [leaveQueue]);
@@ -205,7 +214,6 @@ export default function Home() {
       console.log('Matched!', data);
       setPartner(data.partner);
       setStatus('matched');
-      setUserId(data.userId);
 
       // Send chat message from learner to fluent speaker
       if (role === 'learner' && isInstalled) {
@@ -216,7 +224,6 @@ export default function Home() {
     const handleQueued = (data: QueuedPayload) => {
       console.log('Queued:', data);
       setStatus('queued');
-      setUserId(data.userId);
     };
 
     const handleError = (data: ErrorPayload) => {
