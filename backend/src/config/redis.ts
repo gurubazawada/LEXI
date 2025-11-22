@@ -2,6 +2,12 @@ import { createClient } from 'redis';
 
 const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
 
+// Log the Redis URL (without password for security)
+const safeUrl = redisUrl.includes('@') 
+  ? redisUrl.split('@')[1] 
+  : redisUrl;
+console.log(`🔗 Connecting to Redis: ${safeUrl}`);
+
 export const redisClient = createClient({
   url: redisUrl,
 });
