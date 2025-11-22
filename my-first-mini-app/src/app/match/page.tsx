@@ -447,23 +447,11 @@ export default function MatchPage() {
                         </p>
                       </>
                     ) : (
-                      <>
-                        <Button
-                          asChild
-                          className="w-full h-12 text-base font-semibold rounded-xl shadow-lg shadow-primary/20"
-                        >
-                          <a
-                            href={chatUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            Open Chat
-                          </a>
-                        </Button>
-                        <p className="text-xs text-center text-muted-foreground">
-                          Opens World Chat with {partner?.username || 'your match'}.
+                      <div className="w-full p-6 rounded-xl bg-muted/50 border border-border/50">
+                        <p className="text-center text-muted-foreground">
+                          Wait for <span className="font-semibold text-foreground">{partner?.username || 'your match'}</span> to text you
                         </p>
-                      </>
+                      </div>
                     )}
 
                     {chatError && (
