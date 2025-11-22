@@ -172,7 +172,9 @@ export async function sendNotifications(
 export async function sendDailyNotifications(
   appId: string,
   miniAppPath: string,
-  apiKey?: string
+  apiKey?: string,
+  customTitle?: string,
+  customMessage?: string
 ): Promise<SendNotificationResponse> {
   const users = await getUsersWithNotificationsEnabled();
 
@@ -185,10 +187,10 @@ export async function sendDailyNotifications(
     };
   }
 
-  console.log(`📧 Sending daily notifications to ${users.length} users`);
+  console.log(`📧 Sending notifications to ${users.length} users`);
 
-  const title = '🌍 Daily Language Practice';
-  const message = 'Hello ${username}! Ready for some language practice today? Find a partner and start chatting!';
+  const title = customTitle || '🌍 Daily Language Practice';
+  const message = customMessage || 'Hello ${username}! Ready for some language practice today? Find a partner and start chatting!';
 
   return await sendNotifications(
     users,
