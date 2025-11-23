@@ -165,43 +165,34 @@ export default function MatchPage() {
       }
 
       try {
-        console.log('=== CHAT DEBUG START ===');
-        console.log('Partner data:', JSON.stringify(partnerData, null, 2));
+        console.log('Partner data:', partnerData);
 
         const recipient: string[] = [];
         if (partnerData.username) {
-          console.log('✅ Using partner username:', partnerData.username);
+          console.log('Using partner username:', partnerData.username);
           recipient.push(partnerData.username);
         } else if (partnerData.walletAddress) {
-          console.log('✅ Using partner wallet address:', partnerData.walletAddress);
+          console.log('Using partner wallet address:', partnerData.walletAddress);
           recipient.push(partnerData.walletAddress);
         } else {
-          console.error('❌ No username or wallet address found for partner');
-          console.log('Partner object keys:', Object.keys(partnerData));
+          console.error('No username or wallet address found for partner');
           setChatError('Partner contact info not available');
           return;
         }
-        
-        console.log('📋 Recipient array:', recipient);
 
         const languageLabel = languages.find(l => l.value === language)?.label || language;
         const message = `Hi! We matched for ${languageLabel} practice. I'm a ${role} and you're a ${partnerData.role}. Let's start practicing!`;
 
         const payload: ChatPayload = {
           message,
-          to: recipient, // This auto-selects the recipient in the chat modal
+          to: recipient,
         };
 
-        console.log('📤 SENDING TO MINIKIT:');
-        console.log('   Recipient:', recipient);
-        console.log('   Message:', message);
-        console.log('   Full payload:', JSON.stringify(payload, null, 2));
-        console.log('=== CALLING MiniKit.commandsAsync.chat() ===');
+        console.log('Sending chat with payload:', payload);
 
         const { finalPayload } = await MiniKit.commandsAsync.chat(payload);
 
-        console.log('✅ Chat response:', JSON.stringify(finalPayload, null, 2));
-        console.log('=== CHAT DEBUG END ===');
+        console.log('Chat response:', finalPayload);
 
         if (finalPayload.status === 'success') {
           setChatSent(true);
@@ -230,12 +221,8 @@ export default function MatchPage() {
   // Setup Socket.io event listeners
   useEffect(() => {
     const handleMatched = (data: MatchedPayload) => {
-      console.log('🎉 === MATCH FOUND ===');
-      console.log('Full match data:', JSON.stringify(data, null, 2));
-      console.log('Partner username:', data.partner.username);
-      console.log('Partner walletAddress:', data.partner.walletAddress);
-      console.log('Partner role:', data.partner.role);
-      console.log('Partner language:', data.partner.language);
+      console.log('Matched!', data);
+      console.log('Partner data received:', data.partner);
       setPartner(data.partner);
       setStatus('matched');
       // Don't auto-send chat - let user click button
