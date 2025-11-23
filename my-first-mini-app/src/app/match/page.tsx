@@ -30,89 +30,6 @@ const languages = [
   { value: "zh", label: "Mandarin" },
 ];
 
-// Predefined "we matched" variations in each language
-const MATCHED_MESSAGES: Record<string, string[]> = {
-  en: [
-    "We matched!",
-    "We're matched!",
-    "Match found!",
-    "We got matched!",
-    "Perfect match!",
-  ],
-  es: [
-    "¡Hemos hecho match!",
-    "¡Hemos coincidido!",
-    "¡Encontramos match!",
-    "¡Match encontrado!",
-    "¡Coincidencia perfecta!",
-  ],
-  fr: [
-    "Nous avons matché !",
-    "Nous sommes matchés !",
-    "Match trouvé !",
-    "On a matché !",
-    "Match parfait !",
-  ],
-  de: [
-    "Wir haben gematcht!",
-    "Wir sind gematcht!",
-    "Match gefunden!",
-    "Wir haben ein Match!",
-    "Perfektes Match!",
-  ],
-  jp: [
-    "マッチしました！",
-    "マッチが見つかりました！",
-    "マッチング成功！",
-    "完璧なマッチです！",
-    "マッチングしました！",
-  ],
-  pt: [
-    "Fizemos match!",
-    "Encontramos match!",
-    "Match encontrado!",
-    "Conseguimos match!",
-    "Match perfeito!",
-  ],
-  it: [
-    "Abbiamo fatto match!",
-    "Siamo matchati!",
-    "Match trovato!",
-    "Abbiamo trovato un match!",
-    "Match perfetto!",
-  ],
-  zh: [
-    "我们匹配了！",
-    "找到匹配了！",
-    "匹配成功！",
-    "我们配对成功了！",
-    "完美匹配！",
-  ],
-};
-
-/**
- * Get a random "we matched" message in the specified language
- * @param language - Language code (e.g., 'en', 'es', 'fr')
- * @returns A random matched message in the specified language, or English fallback
- */
-function getRandomMatchedMessage(language: string): string {
-  const messages = MATCHED_MESSAGES[language] || MATCHED_MESSAGES['en'];
-  const randomIndex = Math.floor(Math.random() * messages.length);
-  return messages[randomIndex];
-}
-
-// Fallback messages in each language
-const fallbackMessages: Record<string, string> = {
-  en: "Let's start practicing!",
-  es: "¡Empecemos a practicar!",
-  fr: "Commençons à pratiquer !",
-  de: "Lass uns üben!",
-  jp: "練習を始めましょう！",
-  pt: "Vamos começar a praticar!",
-  it: "Iniziamo a praticare!",
-  zh: "让我们开始练习吧！",
-};
-
 type QueueState = 'idle' | 'loading' | 'queued' | 'matched';
 type Partner = {
   username?: string;
@@ -266,12 +183,9 @@ export default function MatchPage() {
           return;
         }
 
-        // Use prompt if available, otherwise use language-specific fallback message
-        // The prompt from backend is already in the correct language
-        const promptText = prompt || fallbackMessages[language] || fallbackMessages['en'];
-        // Get a random "we matched" message in the same language
-        const matchedText = getRandomMatchedMessage(language);
-        const message = `${promptText} ${matchedText}`;
+        // Use prompt if available, otherwise use fallback message
+        const promptText = prompt || 'Let\'s start practicing!';
+        const message = `${promptText} We matched!`;
 
         const payload: ChatPayload = {
           message,
