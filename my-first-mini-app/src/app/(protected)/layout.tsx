@@ -22,7 +22,7 @@ export default async function TabsLayout({
       <WorldcoinStylesLoader />
       <Page>
         {children}
-        <Page.Footer className="px-0 fixed bottom-0 w-full bg-white">
+        <Page.Footer className="px-0 fixed bottom-0 w-full bg-white dark:bg-black border-t-2 pt-2 pb-[35px] z-50" style={{ borderColor: '#0f52aa40' }}>
           <Navigation />
         </Page.Footer>
       </Page>
