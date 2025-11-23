@@ -247,8 +247,8 @@ export function setupSocketHandlers(io: Server) {
         // Remove from queue
         await queueService.leaveQueue(userId, role, language);
         
-        // Remove match if exists
-        await matchingService.removeMatch(userId);
+        // Remove match if exists - CRITICAL: Remove for BOTH users
+        await matchingService.removeMatchForBoth(userId);
 
         socket.emit('left_queue', { message: 'Successfully left the queue' });
         

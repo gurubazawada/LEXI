@@ -103,6 +103,24 @@ export class MatchingService {
   }
 
   /**
+   * Remove match data for both users in a match
+   * This ensures both users are fully unmatched and can rejoin queues
+   */
+  async removeMatchForBoth(userId: string): Promise<void> {
+    const matchData = await this.getMatch(userId);
+    if (matchData) {
+      // Remove match for current user
+      await this.removeMatch(userId);
+      // Remove match for partner
+      await this.removeMatch(matchData.partner.id);
+      console.log(`Removed match for both ${userId} and ${matchData.partner.id}`);
+    } else {
+      // No match found, just remove for this user (in case of stale data)
+      await this.removeMatch(userId);
+    }
+  }
+
+  /**
    * Create partner data object from user data
    */
   private createPartnerData(userData: UserData): PartnerData {
