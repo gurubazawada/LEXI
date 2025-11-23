@@ -1,6 +1,10 @@
-# LEX - Language Exchange Platform
+# LEXI - Language Exchange Platform Interface
 
 A real-time language learning platform that matches learners with fluent speakers for practice conversations.
+
+## Demo
+
+Watch a short showcase of LEXI: https://youtu.be/bqrtzKk5LTk
 
 ## Architecture
 
