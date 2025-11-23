@@ -19,28 +19,39 @@ export class LeaderboardService {
   private async getAllFluentSpeakers(): Promise<Set<string>> {
     const fluentSpeakers = new Set<string>();
     
-    // Get all lesson keys
-    const lessonKeys = await redisClient.keys('lesson:*');
-    
-    for (const key of lessonKeys) {
-      // Skip review keys
-      if (key.includes(':reviews')) {
-        continue;
-      }
+    try {
+      // Get all lesson keys
+      const lessonKeys = await redisClient.keys('lesson:*');
+      console.log(`Found ${lessonKeys.length} lesson keys`);
       
-      const lessonJson = await redisClient.get(key);
-      if (lessonJson) {
+      for (const key of lessonKeys) {
+        // Skip review keys
+        if (key.includes(':reviews')) {
+          continue;
+        }
+        
         try {
-          const lesson = JSON.parse(lessonJson);
-          if (lesson.fluentId) {
-            fluentSpeakers.add(lesson.fluentId);
+          const lessonJson = await redisClient.get(key);
+          if (lessonJson) {
+            try {
+              const lesson = JSON.parse(lessonJson);
+              if (lesson.fluentId) {
+                fluentSpeakers.add(lesson.fluentId);
+              }
+            } catch (error) {
+              console.error(`Error parsing lesson from key ${key}:`, error);
+            }
           }
         } catch (error) {
-          console.error(`Error parsing lesson from key ${key}:`, error);
+          console.error(`Error getting lesson from key ${key}:`, error);
         }
       }
+    } catch (error) {
+      console.error('Error in getAllFluentSpeakers:', error);
+      throw error;
     }
     
+    console.log(`Found ${fluentSpeakers.size} unique fluent speakers`);
     return fluentSpeakers;
   }
 
@@ -49,68 +60,83 @@ export class LeaderboardService {
    * Sorted by: 1) Average rating (desc), 2) Total sessions (desc), 3) Alphabetical (asc)
    */
   async getLeaderboard(limit: number = 100): Promise<LeaderboardEntry[]> {
-    const fluentSpeakers = await this.getAllFluentSpeakers();
-    const entries: LeaderboardEntry[] = [];
+    try {
+      console.log('Starting leaderboard calculation...');
+      const fluentSpeakers = await this.getAllFluentSpeakers();
+      const entries: LeaderboardEntry[] = [];
 
-    // Get data for each fluent speaker
-    for (const fluentId of fluentSpeakers) {
-      try {
-        // Get rating data
-        const rating = await reviewService.getFluentRating(fluentId);
-        
-        // Get total sessions count
-        const lessons = await lessonService.getUserLessons(fluentId, 10000);
-        const totalSessions = lessons.length;
-
-        // Get fluent username from first lesson (or use a default)
-        let fluentUsername = 'Unknown';
-        let fluentWalletAddress: string | undefined;
-        
-        if (lessons.length > 0) {
-          fluentUsername = lessons[0].fluentUsername;
-          fluentWalletAddress = lessons[0].fluentWalletAddress;
-        }
-
-        // Only include fluent speakers who have at least one review
-        if (rating.totalReviews > 0) {
-          entries.push({
-            fluentId,
-            fluentUsername,
-            fluentWalletAddress,
-            averageRating: rating.averageRating,
-            totalReviews: rating.totalReviews,
-            totalSessions,
-            rank: 0, // Will be set after sorting
-          });
-        }
-      } catch (error) {
-        console.error(`Error processing fluent speaker ${fluentId}:`, error);
+      if (fluentSpeakers.size === 0) {
+        console.log('No fluent speakers found in lessons - returning empty leaderboard');
+        return [];
       }
+
+      console.log(`Processing ${fluentSpeakers.size} fluent speakers...`);
+
+      // Get data for each fluent speaker
+      for (const fluentId of fluentSpeakers) {
+        try {
+          // Get rating data
+          const rating = await reviewService.getFluentRating(fluentId);
+          
+          // Get total sessions count
+          const lessons = await lessonService.getUserLessons(fluentId, 10000);
+          const totalSessions = lessons.length;
+
+          // Get fluent username from first lesson (or use a default)
+          let fluentUsername = 'Unknown';
+          let fluentWalletAddress: string | undefined;
+          
+          if (lessons.length > 0) {
+            fluentUsername = lessons[0].fluentUsername;
+            fluentWalletAddress = lessons[0].fluentWalletAddress;
+          }
+
+          // Only include fluent speakers who have at least one review
+          if (rating.totalReviews > 0) {
+            entries.push({
+              fluentId,
+              fluentUsername,
+              fluentWalletAddress,
+              averageRating: rating.averageRating,
+              totalReviews: rating.totalReviews,
+              totalSessions,
+              rank: 0, // Will be set after sorting
+            });
+          }
+        } catch (error) {
+          console.error(`Error processing fluent speaker ${fluentId}:`, error);
+          // Continue processing other speakers even if one fails
+        }
+      }
+
+      // Sort by: 1) Average rating (desc), 2) Total sessions (desc), 3) Alphabetical (asc)
+      entries.sort((a, b) => {
+        // First: Compare by average rating (descending)
+        if (b.averageRating !== a.averageRating) {
+          return b.averageRating - a.averageRating;
+        }
+        
+        // Second: Compare by total sessions (descending)
+        if (b.totalSessions !== a.totalSessions) {
+          return b.totalSessions - a.totalSessions;
+        }
+        
+        // Third: Compare alphabetically by username (ascending)
+        return a.fluentUsername.localeCompare(b.fluentUsername);
+      });
+
+      // Assign ranks
+      entries.forEach((entry, index) => {
+        entry.rank = index + 1;
+      });
+
+      // Limit results
+      return entries.slice(0, limit);
+    } catch (error) {
+      console.error('Error in getLeaderboard:', error);
+      // Return empty array instead of throwing to prevent frontend errors
+      return [];
     }
-
-    // Sort by: 1) Average rating (desc), 2) Total sessions (desc), 3) Alphabetical (asc)
-    entries.sort((a, b) => {
-      // First: Compare by average rating (descending)
-      if (b.averageRating !== a.averageRating) {
-        return b.averageRating - a.averageRating;
-      }
-      
-      // Second: Compare by total sessions (descending)
-      if (b.totalSessions !== a.totalSessions) {
-        return b.totalSessions - a.totalSessions;
-      }
-      
-      // Third: Compare alphabetically by username (ascending)
-      return a.fluentUsername.localeCompare(b.fluentUsername);
-    });
-
-    // Assign ranks
-    entries.forEach((entry, index) => {
-      entry.rank = index + 1;
-    });
-
-    // Limit results
-    return entries.slice(0, limit);
   }
 
   /**

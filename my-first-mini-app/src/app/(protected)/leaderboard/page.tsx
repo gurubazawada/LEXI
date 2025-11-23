@@ -22,10 +22,16 @@ export default function LeaderboardPage() {
   const loadLeaderboard = async () => {
     try {
       setLoading(true);
+      setError(null);
+      console.log('Loading leaderboard...');
       const data = await fetchLeaderboard(100);
-      setLeaderboard(data.leaderboard);
+      console.log('Leaderboard data received:', data);
+      setLeaderboard(data.leaderboard || []);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load leaderboard');
+      console.error('Error loading leaderboard:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load leaderboard';
+      setError(errorMessage);
+      setLeaderboard([]); // Set empty array on error
     } finally {
       setLoading(false);
     }
@@ -64,26 +70,22 @@ export default function LeaderboardPage() {
     );
   }
 
-  if (error) {
-    return (
-      <>
-        <Page.Header className="p-0">
-          <TopBar title="Leaderboard" />
-        </Page.Header>
-        <Page.Main className="flex items-center justify-center">
-          <p className="text-red-600">{error}</p>
-        </Page.Main>
-      </>
-    );
-  }
-
   return (
     <>
       <Page.Header className="p-0">
         <TopBar title="Leaderboard" />
       </Page.Header>
-      <Page.Main className="space-y-4 pb-16">
-        {leaderboard.length === 0 ? (
+      <Page.Main className="space-y-4 pb-20">
+        {error ? (
+          <Card>
+            <CardContent className="pt-6 text-center">
+              <p className="text-red-600 mb-2">{error}</p>
+              <p className="text-sm text-gray-500">
+                Please try again later
+              </p>
+            </CardContent>
+          </Card>
+        ) : leaderboard.length === 0 ? (
           <Card>
             <CardContent className="pt-6 text-center">
               <Trophy className="w-12 h-12 mx-auto text-gray-400 mb-4" />

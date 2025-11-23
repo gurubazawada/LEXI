@@ -16,6 +16,9 @@ import { useRouter } from 'next/navigation';
 import { useSocket } from '@/hooks/useSocket';
 import type { MatchedPayload, QueuedPayload, ErrorPayload } from '@/hooks/useSocket';
 import type { UserStats } from '@/types/stats';
+import { Navigation } from '@/components/Navigation';
+import { Page } from '@/components/PageLayout';
+import { TopBar } from '@worldcoin/mini-apps-ui-kit-react';
 
 const languages = [
   { value: "es", label: "Spanish" },
@@ -30,6 +33,7 @@ const languages = [
 
 type QueueState = 'idle' | 'loading' | 'queued' | 'matched';
 type Partner = {
+  id?: string;
   username?: string;
   walletAddress?: string;
   language?: string;
@@ -60,17 +64,22 @@ export default function MatchPage() {
   const [chatSent, setChatSent] = useState(false);
   const [chatError, setChatError] = useState<string | null>(null);
   const [stats, setStats] = useState<UserStats>({ totalChats: 0, currentStreak: 0, communityRank: '--' });
+  const [lessonId, setLessonId] = useState<string | null>(null);
   const chatSubscriptionRef = useRef<(() => void) | void | null>(null);
   const { isInstalled } = useMiniKit();
   const { data: session, status: sessionStatus } = useSession();
   const { isConnected, isConnecting, joinQueue, leaveQueue, onMatched, onQueued, onError, offMatched, offQueued, offError } = useSocket();
 
-  // Redirect to home if not authenticated
-  useEffect(() => {
-    if (sessionStatus === 'unauthenticated') {
-      router.push('/');
-    }
-  }, [sessionStatus, router]);
+  // Auth bypass - comment out redirect to allow unauthenticated access
+  // useEffect(() => {
+  //   if (sessionStatus === 'unauthenticated') {
+  //     router.push('/');
+  //   }
+  // }, [sessionStatus, router]);
+  
+  if (sessionStatus === 'unauthenticated') {
+    console.log('⚠️ Auth bypassed - allowing access to match page without authentication');
+  }
 
   // Fetch user stats
   useEffect(() => {
@@ -118,16 +127,24 @@ export default function MatchPage() {
     console.log('Session data:', session);
     console.log('User data:', session?.user);
 
-    // REQUIRE authentication - no anonymous mode
-    if (!session?.user?.walletAddress) {
-      console.error('Authentication required to join queue');
-      router.push('/');
-      return;
-    }
+    // Allow anonymous users (auth bypassed mode)
+    let finalUserId: string;
+    let username: string;
+    let walletAddress: string | undefined;
 
-    const finalUserId = session.user.walletAddress;
-    const username = session.user.username || session.user.walletAddress.slice(0, 8);
-    const walletAddress = session.user.walletAddress;
+    if (session?.user?.walletAddress) {
+      // Use authenticated user data if available
+      finalUserId = session.user.walletAddress;
+      username = session.user.username || session.user.walletAddress.slice(0, 8);
+      walletAddress = session.user.walletAddress;
+    } else {
+      // Generate anonymous user data for testing
+      const anonymousId = `anon-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      finalUserId = anonymousId;
+      username = `User${Math.random().toString(36).substr(2, 4)}`;
+      walletAddress = undefined;
+      console.log('⚠️ Using anonymous user data (auth bypassed)');
+    }
 
     console.log('Using userId:', finalUserId);
     console.log('Using username:', username);
@@ -135,7 +152,7 @@ export default function MatchPage() {
 
     setStatus('loading');
 
-    // Join queue via Socket.io with authenticated user data
+    // Join queue via Socket.io
     joinQueue({
       role,
       language,
@@ -143,16 +160,10 @@ export default function MatchPage() {
       username,
       walletAddress,
     });
-  }, [language, isConnected, session, role, joinQueue, router]);
+  }, [language, isConnected, session, role, joinQueue]);
 
-  const sendChatMessage = useCallback(
+  const createLessonObject = useCallback(
     async (partnerData: Partner) => {
-      if (!isInstalled) {
-        console.error('World App not installed');
-        setChatError('Please install World App to start chatting');
-        return;
-      }
-
       if (!partnerData) {
         console.error('No partner data available');
         setChatError('Partner data not available');
@@ -160,53 +171,70 @@ export default function MatchPage() {
       }
 
       if (chatSent) {
-        console.log('Chat already sent, skipping');
+        console.log('Lesson already created, skipping');
         return;
       }
 
       try {
-        console.log('Partner data:', partnerData);
+        // Get user IDs - use walletAddress as primary ID (consistent with auth)
+        const userId = session?.user?.walletAddress || session?.user?.id || `anon-${Date.now()}`;
+        const username = session?.user?.username || `User${Math.random().toString(36).substr(2, 4)}`;
+        const walletAddress = session?.user?.walletAddress;
 
-        const recipient: string[] = [];
-        if (partnerData.username) {
-          console.log('Using partner username:', partnerData.username);
-          recipient.push(partnerData.username);
-        } else if (partnerData.walletAddress) {
-          console.log('Using partner wallet address:', partnerData.walletAddress);
-          recipient.push(partnerData.walletAddress);
-        } else {
-          console.error('No username or wallet address found for partner');
-          setChatError('Partner contact info not available');
+        // Determine learner and fluent IDs based on role
+        // Use partner's ID, walletAddress, or username as ID
+        const partnerId = partnerData.id || partnerData.walletAddress || partnerData.username || `partner-${Date.now()}`;
+        const learnerId = role === 'learner' ? userId : partnerId;
+        const learnerUsername = role === 'learner' ? username : partnerData.username || 'Unknown';
+        const learnerWalletAddress = role === 'learner' ? walletAddress : partnerData.walletAddress;
+        
+        const fluentId = role === 'fluent' ? userId : partnerId;
+        const fluentUsername = role === 'fluent' ? username : partnerData.username || 'Unknown';
+        const fluentWalletAddress = role === 'fluent' ? walletAddress : partnerData.walletAddress;
+
+        if (!learnerId || !fluentId) {
+          setChatError('Missing user or partner ID');
           return;
         }
 
-        const languageLabel = languages.find(l => l.value === language)?.label || language;
-        const message = `Hi! We matched for ${languageLabel} practice. I'm a ${role} and you're a ${partnerData.role}. Let's start practicing!`;
+        console.log('Creating lesson object...', {
+          learnerId,
+          learnerUsername,
+          fluentId,
+          fluentUsername,
+          language,
+        });
 
-        const payload: ChatPayload = {
-          message,
-          to: recipient,
-        };
+        // Import createLesson function
+        const { createLesson } = await import('@/lib/api');
+        const result = await createLesson(
+          learnerId,
+          learnerUsername,
+          learnerWalletAddress,
+          fluentId,
+          fluentUsername,
+          fluentWalletAddress,
+          language
+        );
 
-        console.log('Sending chat with payload:', payload);
-
-        const { finalPayload } = await MiniKit.commandsAsync.chat(payload);
-
-        console.log('Chat response:', finalPayload);
-
-        if (finalPayload.status === 'success') {
-          setChatSent(true);
-          console.log(`Chat opened successfully with ${recipient[0]}`);
-        } else {
-          console.warn('Chat command returned non-success:', finalPayload);
-          setChatError(finalPayload.error_code || 'Failed to open chat');
-        }
+        setChatSent(true);
+        setLessonId(result.lesson.id);
+        console.log(`✓ Lesson created: ${result.lesson.id}`);
+        console.log('💡 Check the Lessons tab to see your conversation!');
+        
+        // Dispatch custom event to notify lessons page to refresh
+        window.dispatchEvent(new CustomEvent('lessonCreated', { 
+          detail: { 
+            lessonId: result.lesson.id,
+            userId: userId 
+          } 
+        }));
       } catch (error: any) {
-        console.error('Failed to open chat:', error);
-        setChatError(error.message || 'Failed to open chat');
+        console.error('Failed to create lesson:', error);
+        setChatError(error.message || 'Failed to create lesson');
       }
     },
-    [isInstalled, chatSent, language, role]
+    [session, role, language, chatSent]
   );
 
   const reset = useCallback(() => {
@@ -223,7 +251,9 @@ export default function MatchPage() {
     const handleMatched = (data: MatchedPayload) => {
       console.log('Matched!', data);
       console.log('Partner data received:', data.partner);
+      console.log('Lesson ID:', data.lessonId);
       setPartner(data.partner);
+      setLessonId(data.lessonId || null);
       setStatus('matched');
       // Don't auto-send chat - let user click button
     };
@@ -261,8 +291,12 @@ export default function MatchPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white dark:bg-black flex flex-col p-6">
-      <div className="w-full max-w-md mx-auto space-y-6">
+    <Page>
+      <Page.Header className="p-0">
+        <TopBar title="Match" />
+      </Page.Header>
+      <Page.Main className="p-6 pb-20">
+        <div className="w-full max-w-md mx-auto space-y-6">
         
         {/* Header - Moved to top */}
         <div className="flex items-center justify-between pt-2">
@@ -429,20 +463,18 @@ export default function MatchPage() {
                     <>
                       <div className="w-full max-w-xs">
                         <Button
-                          onClick={() => partner && sendChatMessage(partner)}
-                          disabled={!isInstalled || chatSent}
+                          onClick={() => partner && createLessonObject(partner)}
+                          disabled={chatSent}
                           variant="primary"
                           className="ring-2 ring-black dark:ring-white ring-offset-2 ring-offset-white dark:ring-offset-black"
                         >
-                          {chatSent ? 'Chat Opened' : 'Start Chatting'}
+                          {chatSent ? 'Lesson Created' : 'Start Conversation'}
                         </Button>
                       </div>
                       <p className="text-xs text-center text-gray-600 dark:text-gray-400">
-                        {!isInstalled
-                          ? 'Install World App to start chatting'
-                          : chatSent
-                          ? `Chat opened with ${partner?.username || 'your match'}`
-                          : `Opens World Chat with ${partner?.username || 'your match'}`}
+                        {chatSent
+                          ? `Lesson created! Check the Lessons tab to see it.`
+                          : `Click to create a lesson and start your conversation`}
                       </p>
                     </>
                   ) : (
@@ -477,7 +509,11 @@ export default function MatchPage() {
         <div className="text-center text-xs text-gray-500 dark:text-gray-600">
           <p>Powered by Worldcoin</p>
         </div>
-      </div>
-    </div>
+        </div>
+      </Page.Main>
+      <Page.Footer className="px-0 fixed bottom-0 w-full bg-white">
+        <Navigation />
+      </Page.Footer>
+    </Page>
   );
 }

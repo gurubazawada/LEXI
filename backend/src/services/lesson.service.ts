@@ -42,10 +42,15 @@ export class LessonService {
     await redisClient.set(this.getLessonKey(lessonId), JSON.stringify(lesson));
 
     // Add lesson ID to both users' lesson lists
-    await redisClient.lPush(this.getUserLessonsKey(learnerId), lessonId);
-    await redisClient.lPush(this.getUserLessonsKey(fluentId), lessonId);
+    const learnerKey = this.getUserLessonsKey(learnerId);
+    const fluentKey = this.getUserLessonsKey(fluentId);
+    
+    await redisClient.lPush(learnerKey, lessonId);
+    await redisClient.lPush(fluentKey, lessonId);
 
     console.log(`✓ Lesson created: ${lessonId} (${learnerUsername} ↔ ${fluentUsername})`);
+    console.log(`  📝 Added to learner list: ${learnerKey}`);
+    console.log(`  📝 Added to fluent list: ${fluentKey}`);
 
     return lesson;
   }
@@ -92,17 +97,44 @@ export class LessonService {
    * Get all lessons for a user
    */
   async getUserLessons(userId: string, limit: number = 50): Promise<Lesson[]> {
-    const lessonIds = await redisClient.lRange(this.getUserLessonsKey(userId), 0, limit - 1);
+    const userLessonsKey = this.getUserLessonsKey(userId);
+    console.log(`  🔍 Looking up lessons for key: ${userLessonsKey}`);
+    
+    const lessonIds = await redisClient.lRange(userLessonsKey, 0, limit - 1);
+    console.log(`  📋 Found ${lessonIds.length} lesson IDs for user ${userId}`);
+    
+    if (lessonIds.length === 0) {
+      console.log(`  ℹ️ No lessons found for user ${userId}`);
+      return [];
+    }
     
     const lessons: Lesson[] = [];
     
-    for (const lessonId of lessonIds) {
-      const lesson = await this.getLesson(lessonId);
+    // Fetch all lessons in parallel for better performance
+    const lessonPromises = lessonIds.map(async (lessonId) => {
+      try {
+        const lesson = await this.getLesson(lessonId);
+        if (!lesson) {
+          console.warn(`  ⚠️ Lesson ${lessonId} not found in Redis`);
+        }
+        return lesson;
+      } catch (error) {
+        console.error(`  ❌ Error fetching lesson ${lessonId}:`, error);
+        return null;
+      }
+    });
+    
+    const lessonResults = await Promise.all(lessonPromises);
+    
+    // Filter out null results
+    for (const lesson of lessonResults) {
       if (lesson) {
         lessons.push(lesson);
       }
     }
 
+    console.log(`  ✓ Retrieved ${lessons.length} valid lessons out of ${lessonIds.length} IDs`);
+    
     // Sort by startedAt descending (most recent first)
     return lessons.sort((a, b) => b.startedAt - a.startedAt);
   }

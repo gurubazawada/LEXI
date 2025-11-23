@@ -69,9 +69,17 @@ app.get('/', (req, res) => {
     status: 'running',
     endpoints: {
       health: '/health',
+      leaderboard: '/api/leaderboard',
+      lessons: '/api/lessons/:userId',
+      reviews: '/api/reviews',
       socket: 'ws://localhost:4000',
     },
   });
+});
+
+// Test route to verify routing works
+app.get('/api/test', (req, res) => {
+  res.json({ message: 'API routing is working' });
 });
 
 // Notification endpoints
@@ -225,7 +233,77 @@ app.post('/api/notifications/send', async (req, res) => {
   }
 });
 
+// ========== Leaderboard Endpoints ==========
+
+// Get leaderboard
+app.get('/api/leaderboard', async (req, res) => {
+  try {
+    console.log('📊 Leaderboard request received');
+    const limit = parseInt(req.query.limit as string) || 100;
+    const leaderboard = await leaderboardService.getLeaderboard(limit);
+    console.log(`✓ Leaderboard calculated: ${leaderboard.length} entries`);
+    res.json({ leaderboard });
+  } catch (error) {
+    console.error('❌ Error fetching leaderboard:', error);
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+    res.status(500).json({ 
+      error: 'Internal server error',
+      message: error instanceof Error ? error.message : 'Unknown error',
+      details: process.env.NODE_ENV === 'development' ? (error instanceof Error ? error.stack : undefined) : undefined
+    });
+  }
+});
+
+// Get leaderboard entry for a specific fluent speaker
+app.get('/api/leaderboard/:fluentId', async (req, res) => {
+  try {
+    const { fluentId } = req.params;
+    const entry = await leaderboardService.getFluentLeaderboardEntry(fluentId);
+
+    if (!entry) {
+      return res.status(404).json({ error: 'Fluent speaker not found in leaderboard' });
+    }
+
+    res.json({ entry });
+  } catch (error) {
+    console.error('Error fetching leaderboard entry:', error);
+    res.status(500).json({ 
+      error: 'Internal server error',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
 // ========== Lesson Endpoints ==========
+
+// Create a lesson
+app.post('/api/lessons', async (req, res) => {
+  try {
+    const { learnerId, learnerUsername, learnerWalletAddress, fluentId, fluentUsername, fluentWalletAddress, language } = req.body;
+
+    if (!learnerId || !learnerUsername || !fluentId || !fluentUsername || !language) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    const lesson = await lessonService.createLesson(
+      learnerId,
+      learnerUsername,
+      learnerWalletAddress,
+      fluentId,
+      fluentUsername,
+      fluentWalletAddress,
+      language
+    );
+
+    res.json({ lesson });
+  } catch (error) {
+    console.error('Error creating lesson:', error);
+    res.status(500).json({ 
+      error: 'Internal server error',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
 
 // Get all lessons for a user
 app.get('/api/lessons/:userId', async (req, res) => {
@@ -233,10 +311,18 @@ app.get('/api/lessons/:userId', async (req, res) => {
     const { userId } = req.params;
     const limit = parseInt(req.query.limit as string) || 50;
 
+    console.log(`📚 Fetching lessons for user: ${userId}, limit: ${limit}`);
+    const startTime = Date.now();
+    
     const lessons = await lessonService.getUserLessons(userId, limit);
+    
+    const duration = Date.now() - startTime;
+    console.log(`✓ Fetched ${lessons.length} lessons for user ${userId} in ${duration}ms`);
+    
     res.json({ lessons });
   } catch (error) {
-    console.error('Error fetching lessons:', error);
+    console.error('❌ Error fetching lessons:', error);
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
     res.status(500).json({ 
       error: 'Internal server error',
       message: error instanceof Error ? error.message : 'Unknown error'
@@ -372,43 +458,6 @@ app.get('/api/reviews/lesson/:lessonId/check', async (req, res) => {
     res.json({ hasReviewed });
   } catch (error) {
     console.error('Error checking review:', error);
-    res.status(500).json({ 
-      error: 'Internal server error',
-      message: error instanceof Error ? error.message : 'Unknown error'
-    });
-  }
-});
-
-// ========== Leaderboard Endpoints ==========
-
-// Get leaderboard
-app.get('/api/leaderboard', async (req, res) => {
-  try {
-    const limit = parseInt(req.query.limit as string) || 100;
-    const leaderboard = await leaderboardService.getLeaderboard(limit);
-    res.json({ leaderboard });
-  } catch (error) {
-    console.error('Error fetching leaderboard:', error);
-    res.status(500).json({ 
-      error: 'Internal server error',
-      message: error instanceof Error ? error.message : 'Unknown error'
-    });
-  }
-});
-
-// Get leaderboard entry for a specific fluent speaker
-app.get('/api/leaderboard/:fluentId', async (req, res) => {
-  try {
-    const { fluentId } = req.params;
-    const entry = await leaderboardService.getFluentLeaderboardEntry(fluentId);
-
-    if (!entry) {
-      return res.status(404).json({ error: 'Fluent speaker not found in leaderboard' });
-    }
-
-    res.json({ entry });
-  } catch (error) {
-    console.error('Error fetching leaderboard entry:', error);
     res.status(500).json({ 
       error: 'Internal server error',
       message: error instanceof Error ? error.message : 'Unknown error'

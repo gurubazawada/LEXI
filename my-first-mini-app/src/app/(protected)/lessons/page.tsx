@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -47,25 +47,30 @@ export default function LessonsPage() {
   const [reviewData, setReviewData] = useState<{ [lessonId: string]: ReviewType | null }>({});
   const [hasReviewed, setHasReviewed] = useState<{ [lessonId: string]: boolean }>({});
 
-  useEffect(() => {
-    if (session?.user?.id) {
-      loadLessons();
+  const loadLessons = useCallback(async () => {
+    const userId = session?.user?.walletAddress || session?.user?.id;
+    console.log('🔄 loadLessons called with userId:', userId);
+    
+    if (!userId) {
+      console.error('❌ No userId in loadLessons');
+      setError('User ID required');
+      setLoading(false);
+      return;
     }
-  }, [session]);
-
-  const loadLessons = async () => {
-    if (!session?.user?.id) return;
 
     try {
       setLoading(true);
-      const data = await fetchLessons(session.user.id);
+      setError(null);
+      console.log('📞 Calling fetchLessons with userId:', userId);
+      const data = await fetchLessons(userId);
+      console.log('✅ fetchLessons returned:', data);
       setLessons(data.lessons);
 
       // Load review data for each lesson
       const reviewPromises = data.lessons.map(async (lesson) => {
         try {
           const reviewData = await fetchReviewForLesson(lesson.id);
-          const checkData = await checkReviewExists(lesson.id, session.user.id!);
+          const checkData = await checkReviewExists(lesson.id, userId);
           return {
             lessonId: lesson.id,
             review: reviewData.review,
@@ -91,12 +96,114 @@ export default function LessonsPage() {
 
       setReviewData(reviewMap);
       setHasReviewed(hasReviewedMap);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load lessons');
+      setError(null);
+    } catch (err: any) {
+      console.error('Error loading lessons:', err);
+      setError(err.message || 'Failed to load lessons');
     } finally {
       setLoading(false);
     }
-  };
+  }, [session]);
+
+  // Initial load on mount
+  useEffect(() => {
+    const userId = session?.user?.walletAddress || session?.user?.id;
+    console.log('🔍 Lessons page initial useEffect - userId:', userId, 'session:', session);
+    
+    if (userId) {
+      console.log('📚 Initial load - Loading lessons for userId:', userId);
+      loadLessons();
+    } else if (!session) {
+      // If no session but auth is bypassed, show empty state
+      console.log('⚠️ No session - skipping lesson load (auth bypassed)');
+      setLoading(false);
+    } else {
+      console.log('⚠️ No userId found in session');
+      setError('User ID not found');
+      setLoading(false);
+    }
+  }, [session, loadLessons]);
+
+  // Listen for lesson creation events to refresh the list
+  useEffect(() => {
+    const handleLessonCreated = (event: CustomEvent) => {
+      console.log('📬 Lesson created event received:', event.detail);
+      const userId = session?.user?.walletAddress || session?.user?.id;
+      if (userId) {
+        // Refresh lessons when a new one is created
+        loadLessons();
+      }
+    };
+
+    window.addEventListener('lessonCreated', handleLessonCreated as EventListener);
+    return () => {
+      window.removeEventListener('lessonCreated', handleLessonCreated as EventListener);
+    };
+  }, [session, loadLessons]);
+
+  // Refresh lessons when page becomes visible or window gains focus
+  useEffect(() => {
+    const userId = session?.user?.walletAddress || session?.user?.id;
+    if (!userId) return;
+
+    const reloadLessons = async () => {
+      try {
+        const data = await fetchLessons(userId);
+        setLessons(data.lessons);
+        
+        // Reload review data
+        const reviewPromises = data.lessons.map(async (lesson) => {
+          try {
+            const reviewData = await fetchReviewForLesson(lesson.id);
+            const checkData = await checkReviewExists(lesson.id, userId);
+            return {
+              lessonId: lesson.id,
+              review: reviewData.review,
+              hasReviewed: checkData.hasReviewed,
+            };
+          } catch (err) {
+            return {
+              lessonId: lesson.id,
+              review: null,
+              hasReviewed: false,
+            };
+          }
+        });
+
+        const reviewResults = await Promise.all(reviewPromises);
+        const reviewMap: { [lessonId: string]: ReviewType | null } = {};
+        const hasReviewedMap: { [lessonId: string]: boolean } = {};
+
+        reviewResults.forEach(({ lessonId, review, hasReviewed }) => {
+          reviewMap[lessonId] = review;
+          hasReviewedMap[lessonId] = hasReviewed;
+        });
+
+        setReviewData(reviewMap);
+        setHasReviewed(hasReviewedMap);
+      } catch (err) {
+        console.error('Error reloading lessons:', err);
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        reloadLessons();
+      }
+    };
+
+    const handleFocus = () => {
+      reloadLessons();
+    };
+
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [session]);
 
   const formatDuration = (seconds?: number) => {
     if (!seconds) return 'N/A';
@@ -109,7 +216,8 @@ export default function LessonsPage() {
   };
 
   const getPartnerInfo = (lesson: Lesson) => {
-    const isLearner = session?.user?.id === lesson.learnerId;
+    const userId = session?.user?.id || session?.user?.walletAddress;
+    const isLearner = userId === lesson.learnerId;
     return {
       name: isLearner ? lesson.fluentUsername : lesson.learnerUsername,
       role: isLearner ? 'Fluent Speaker' : 'Learner',
@@ -154,7 +262,7 @@ export default function LessonsPage() {
       <Page.Header className="p-0">
         <TopBar title="Past Conversations" />
       </Page.Header>
-      <Page.Main className="space-y-4 pb-16">
+      <Page.Main className="space-y-4 pb-20">
         {lessons.length === 0 ? (
           <Card>
             <CardContent className="pt-6 text-center">
@@ -177,14 +285,18 @@ export default function LessonsPage() {
                   ← Back to Conversations
                 </Button>
 
-                {session?.user?.id === selectedLesson.learnerId && 
-                 !hasReviewed[selectedLesson.id] && (
-                  <Review
-                    lesson={selectedLesson}
-                    learnerId={session.user.id}
-                    onReviewSubmitted={handleReviewSubmitted}
-                  />
-                )}
+                {(() => {
+                  const userId = session?.user?.id || session?.user?.walletAddress;
+                  return userId === selectedLesson.learnerId && 
+                         !hasReviewed[selectedLesson.id] && 
+                         userId && (
+                    <Review
+                      lesson={selectedLesson}
+                      learnerId={userId}
+                      onReviewSubmitted={handleReviewSubmitted}
+                    />
+                  );
+                })()}
 
                 {reviewData[selectedLesson.id] && (
                   <Card>
@@ -238,12 +350,12 @@ export default function LessonsPage() {
                     </div>
                     <div className="text-sm text-gray-600">
                       <strong>Started:</strong>{' '}
-                      {formatDistanceToNow(new Date(selectedLesson.startedAt), { addSuffix: true })}
+                      {formatDistanceToNow(new Date(selectedLesson.startedAt))}
                     </div>
                     {selectedLesson.endedAt && (
                       <div className="text-sm text-gray-600">
                         <strong>Ended:</strong>{' '}
-                        {formatDistanceToNow(new Date(selectedLesson.endedAt), { addSuffix: true })}
+                        {formatDistanceToNow(new Date(selectedLesson.endedAt))}
                       </div>
                     )}
                   </CardContent>
@@ -285,7 +397,7 @@ export default function LessonsPage() {
                         )}
                       </div>
                       <p className="text-xs text-gray-500">
-                        {formatDistanceToNow(new Date(lesson.startedAt), { addSuffix: true })}
+                        {formatDistanceToNow(new Date(lesson.startedAt))}
                       </p>
                       {canReview && (
                         <div className="mt-3">

@@ -9,13 +9,14 @@ export default async function TabsLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const session = await auth();
-
-  // If the user is not authenticated, redirect to the login page
-  if (!session) {
-    console.log('Not authenticated - redirecting to /');
-    redirect('/');
-  }
+  // Auth bypass - comment out the redirect to allow unauthenticated access
+  // const session = await auth();
+  // if (!session) {
+  //   console.log('Not authenticated - redirecting to /');
+  //   redirect('/');
+  // }
+  
+  console.log('⚠️ Auth bypassed - running without authentication');
 
   return (
     <>
