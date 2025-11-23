@@ -22,7 +22,8 @@ export default function LeaderboardPage() {
   const loadLeaderboard = async () => {
     try {
       setLoading(true);
-      const data = await fetchLeaderboard(20); // Only fetch top 20
+      // Fetch enough entries to show podium (top 3) + standard top 30 list underneath
+      const data = await fetchLeaderboard(33);
       setLeaderboard(data.leaderboard);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load leaderboard');
@@ -83,6 +84,9 @@ export default function LeaderboardPage() {
         <TopBar title="Leaderboard" />
       </Page.Header>
       <Page.Main className="space-y-4 pb-16">
+        <div className="px-2">
+          <p className="text-sm text-gray-600">The best rated fluent guides this week.</p>
+        </div>
         {leaderboard.length === 0 ? (
           <Card>
             <CardContent className="pt-6 text-center">
@@ -105,7 +109,19 @@ export default function LeaderboardPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
+                  <p className="text-sm text-center text-yellow-900 mb-4">
+                    Celebrating the top three fluent guides
+                  </p>
                   <div className="flex items-end justify-center gap-3 px-2">
+                    {/** Capture podium entries for readability */}
+                    {/*
+                      Note: leaderboard is sorted descending by performance,
+                      so indexes 0,1,2 correspond to ranks 1,2,3 respectively.
+                    */}
+                    {(() => {
+                      const [first, second, third] = leaderboard;
+                      return (
+                        <>
                     {/* 2nd Place - Silver (Medium Height) */}
                     <div className="flex-1 max-w-[120px]">
                       <div className="flex flex-col items-center">
@@ -122,13 +138,13 @@ export default function LeaderboardPage() {
                         <div className="w-full bg-gradient-to-t from-gray-400 to-gray-300 rounded-t-lg shadow-lg border-2 border-gray-500" style={{ height: '140px' }}>
                           <div className="h-full flex flex-col items-center justify-start pt-3 px-2">
                             <p className="font-bold text-sm text-white truncate w-full text-center drop-shadow-md">
-                              {leaderboard[1].fluentUsername}
+                              {second.fluentUsername}
                             </p>
                             <div className="flex items-center gap-1 mt-2">
                               <Star className="w-4 h-4 fill-yellow-300 text-yellow-300" />
-                              <span className="text-base font-bold text-white">{leaderboard[1].averageRating.toFixed(1)}</span>
+                              <span className="text-base font-bold text-white">{second.averageRating.toFixed(1)}</span>
                             </div>
-                            <p className="text-xs text-gray-100 mt-1">{leaderboard[1].totalSessions} sessions</p>
+                            <p className="text-xs text-gray-100 mt-1">{second.totalSessions} sessions</p>
                           </div>
                         </div>
                       </div>
@@ -150,13 +166,13 @@ export default function LeaderboardPage() {
                         <div className="w-full bg-gradient-to-t from-yellow-500 to-yellow-400 rounded-t-lg shadow-xl border-4 border-yellow-700" style={{ height: '180px' }}>
                           <div className="h-full flex flex-col items-center justify-start pt-4 px-2">
                             <p className="font-bold text-base text-white truncate w-full text-center drop-shadow-lg">
-                              {leaderboard[0].fluentUsername}
+                              {first.fluentUsername}
                             </p>
                             <div className="flex items-center gap-1 mt-2">
                               <Star className="w-5 h-5 fill-yellow-200 text-yellow-200" />
-                              <span className="text-lg font-bold text-white">{leaderboard[0].averageRating.toFixed(1)}</span>
+                              <span className="text-lg font-bold text-white">{first.averageRating.toFixed(1)}</span>
                             </div>
-                            <p className="text-xs text-yellow-100 mt-1">{leaderboard[0].totalSessions} sessions</p>
+                            <p className="text-xs text-yellow-100 mt-1">{first.totalSessions} sessions</p>
                           </div>
                         </div>
                       </div>
@@ -178,17 +194,20 @@ export default function LeaderboardPage() {
                         <div className="w-full bg-gradient-to-t from-amber-700 to-amber-600 rounded-t-lg shadow-lg border-2 border-amber-900" style={{ height: '100px' }}>
                           <div className="h-full flex flex-col items-center justify-start pt-2 px-2">
                             <p className="font-bold text-sm text-white truncate w-full text-center drop-shadow-md">
-                              {leaderboard[2].fluentUsername}
+                              {third.fluentUsername}
                             </p>
                             <div className="flex items-center gap-1 mt-2">
                               <Star className="w-4 h-4 fill-yellow-300 text-yellow-300" />
-                              <span className="text-base font-bold text-white">{leaderboard[2].averageRating.toFixed(1)}</span>
+                              <span className="text-base font-bold text-white">{third.averageRating.toFixed(1)}</span>
                             </div>
-                            <p className="text-xs text-amber-100 mt-1">{leaderboard[2].totalSessions} sessions</p>
+                            <p className="text-xs text-amber-100 mt-1">{third.totalSessions} sessions</p>
                           </div>
                         </div>
                       </div>
                     </div>
+                        </>
+                      );
+                    })()}
                   </div>
                 </CardContent>
               </Card>
@@ -220,11 +239,12 @@ export default function LeaderboardPage() {
               </Card>
             )}
 
-            {/* Rest of Top 20 Leaderboard List (excluding top 3) */}
+            {/* Rest of Top 30 Leaderboard List (excluding top 3) */}
             {leaderboard.length > 3 && (
               <div className="space-y-2">
-                <h2 className="text-lg font-semibold px-2">Top 20 Rankings</h2>
-                {leaderboard.slice(3).map((entry) => (
+                <h2 className="text-lg font-semibold px-2">Top 30 (Ranks 4 - 33)</h2>
+                <p className="text-sm text-gray-600 px-2">Solid performers right behind the podium.</p>
+                {leaderboard.slice(3, 33).map((entry) => (
                   <Card
                     key={entry.fluentId}
                     className="transition-shadow hover:shadow-md"
@@ -271,4 +291,3 @@ export default function LeaderboardPage() {
     </>
   );
 }
-
