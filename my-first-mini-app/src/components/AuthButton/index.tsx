@@ -14,21 +14,9 @@ export const AuthButton = () => {
   const [error, setError] = useState<string | null>(null);
   const { isInstalled } = useMiniKit();
   const { data: session } = useSession();
-  const [logs, setLogs] = useState<string[]>([]);
-
-  const addLog = (msg: string) => {
-    console.log(msg);
-    setLogs(prev => [...prev, `${new Date().toLocaleTimeString()}: ${msg}`]);
-  };
 
   const handleSignIn = useCallback(async () => {
-    addLog('Sign in button clicked');
-    if (!isInstalled) {
-      addLog('MiniKit is not installed');
-      return;
-    }
-    if (isPending) {
-      addLog('Operation pending, ignoring click');
+    if (!isInstalled || isPending) {
       return;
     }
     
@@ -36,13 +24,9 @@ export const AuthButton = () => {
     setIsPending(true);
     
     try {
-      addLog('Initiating Wallet Authentication (SIWE)...');
       await walletAuth();
-      addLog('Wallet auth completed successfully');
     } catch (err) {
-      const msg = `Authentication Error: ${err instanceof Error ? err.message : String(err)}`;
-      addLog(msg);
-      console.error(msg);
+      console.error('Authentication error:', err);
       setError('Authentication failed. Please try again.');
     } finally {
       setIsPending(false);
@@ -69,15 +53,6 @@ export const AuthButton = () => {
       {error && (
         <p className="text-sm text-red-500 text-center">{error}</p>
       )}
-
-      <div className="mt-4 p-2 bg-gray-100 dark:bg-gray-900 rounded text-xs font-mono h-32 overflow-y-auto text-left text-black dark:text-white">
-        <p className="font-bold mb-1">Debug Logs:</p>
-        {logs.map((log, i) => (
-            <div key={i} className="border-b border-gray-200 dark:border-gray-800 last:border-0 py-1 break-all">
-                {log}
-            </div>
-        ))}
-      </div>
     </div>
   );
 };
