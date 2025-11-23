@@ -29,6 +29,13 @@ export interface JoinQueuePayload {
   walletAddress?: string;
 }
 
+export interface QueuedPayload {
+  message: string;
+  queueSize: number;
+  position?: number;
+  userId: string;
+}
+
 export interface QueueStatusPayload {
   queueSize: number;
   role: 'learner' | 'fluent';

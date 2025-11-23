@@ -23,6 +23,7 @@ export interface MatchedPayload {
 export interface QueuedPayload {
   message: string;
   queueSize: number;
+  position?: number;
   userId: string;
 }
 
