@@ -1,4 +1,4 @@
-import type { Lesson, Review, FluentRating } from '@/types/lessons';
+import type { Lesson, Review, FluentRating, LeaderboardEntry } from '@/types/lessons';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:4000';
 
@@ -56,6 +56,22 @@ export async function checkReviewExists(lessonId: string, learnerId: string): Pr
   const response = await fetch(`${API_BASE_URL}/api/reviews/lesson/${lessonId}/check?learnerId=${learnerId}`);
   if (!response.ok) {
     throw new Error('Failed to check review');
+  }
+  return response.json();
+}
+
+export async function fetchLeaderboard(limit: number = 100): Promise<{ leaderboard: LeaderboardEntry[] }> {
+  const response = await fetch(`${API_BASE_URL}/api/leaderboard?limit=${limit}`);
+  if (!response.ok) {
+    throw new Error('Failed to fetch leaderboard');
+  }
+  return response.json();
+}
+
+export async function fetchFluentLeaderboardEntry(fluentId: string): Promise<{ entry: LeaderboardEntry }> {
+  const response = await fetch(`${API_BASE_URL}/api/leaderboard/${fluentId}`);
+  if (!response.ok) {
+    throw new Error('Failed to fetch leaderboard entry');
   }
   return response.json();
 }

@@ -10,6 +10,7 @@ import { setupSocketHandlers } from './socket/handlers.js';
 import { enableNotificationsForUser, disableNotificationsForUser, hasNotificationsEnabled, sendDailyNotifications } from './services/notification.service.js';
 import { lessonService } from './services/lesson.service.js';
 import { reviewService } from './services/review.service.js';
+import { leaderboardService } from './services/leaderboard.service.js';
 
 // Load environment variables from backend directory
 const __filename = fileURLToPath(import.meta.url);
@@ -371,6 +372,43 @@ app.get('/api/reviews/lesson/:lessonId/check', async (req, res) => {
     res.json({ hasReviewed });
   } catch (error) {
     console.error('Error checking review:', error);
+    res.status(500).json({ 
+      error: 'Internal server error',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// ========== Leaderboard Endpoints ==========
+
+// Get leaderboard
+app.get('/api/leaderboard', async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit as string) || 100;
+    const leaderboard = await leaderboardService.getLeaderboard(limit);
+    res.json({ leaderboard });
+  } catch (error) {
+    console.error('Error fetching leaderboard:', error);
+    res.status(500).json({ 
+      error: 'Internal server error',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Get leaderboard entry for a specific fluent speaker
+app.get('/api/leaderboard/:fluentId', async (req, res) => {
+  try {
+    const { fluentId } = req.params;
+    const entry = await leaderboardService.getFluentLeaderboardEntry(fluentId);
+
+    if (!entry) {
+      return res.status(404).json({ error: 'Fluent speaker not found in leaderboard' });
+    }
+
+    res.json({ entry });
+  } catch (error) {
+    console.error('Error fetching leaderboard entry:', error);
     res.status(500).json({ 
       error: 'Internal server error',
       message: error instanceof Error ? error.message : 'Unknown error'

@@ -33,3 +33,13 @@ export interface FluentRating {
   };
 }
 
+export interface LeaderboardEntry {
+  fluentId: string;
+  fluentUsername: string;
+  fluentWalletAddress?: string;
+  averageRating: number;
+  totalReviews: number;
+  totalSessions: number;
+  rank: number;
+}
+
