@@ -67,11 +67,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         // 2. Verify World ID Proof (Proof of Personhood)
         // Only verify if proof data is present
         if (proof && merkle_root && nullifier_hash && verification_level) {
+            console.log('[Auth] Received World ID proof data, initiating verification...');
             const app_id = process.env.NEXT_PUBLIC_WLD_APP_ID;
             const action = process.env.NEXT_PUBLIC_WLD_ACTION;
             
             if (!app_id || !action) {
-                console.error('Missing World ID App ID or Action');
+                console.error('[Auth] Missing World ID App ID or Action configuration');
                 // Fail open or closed depending on requirement. 
                 // For now, let's fail if config is missing but proof was attempted.
                 return null;
@@ -84,12 +85,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             );
             
             if (!proofResult.success) {
-                console.error('Invalid World ID Proof:', proofResult);
+                console.error('[Auth] World ID Proof Validation FAILED:', proofResult);
                 return null;
             }
-            console.log('World ID Proof Verified Successfully!');
+            console.log('[Auth] World ID Proof Verified Successfully!');
         } else {
-            console.log('No World ID proof provided, skipping proof verification.');
+            console.log('[Auth] No World ID proof provided, skipping proof verification.');
         }
 
         // Fetch the user info from World ID
