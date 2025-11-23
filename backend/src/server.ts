@@ -8,6 +8,8 @@ import { dirname, join } from 'path';
 import { connectRedis, disconnectRedis, redisClient } from './config/redis.js';
 import { setupSocketHandlers } from './socket/handlers.js';
 import { enableNotificationsForUser, disableNotificationsForUser, hasNotificationsEnabled, sendDailyNotifications } from './services/notification.service.js';
+import { lessonService } from './services/lesson.service.js';
+import { reviewService } from './services/review.service.js';
 
 // Load environment variables from backend directory
 const __filename = fileURLToPath(import.meta.url);
@@ -215,6 +217,160 @@ app.post('/api/notifications/send', async (req, res) => {
     });
   } catch (error) {
     console.error('Error manually triggering notifications:', error);
+    res.status(500).json({ 
+      error: 'Internal server error',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// ========== Lesson Endpoints ==========
+
+// Get all lessons for a user
+app.get('/api/lessons/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const limit = parseInt(req.query.limit as string) || 50;
+
+    const lessons = await lessonService.getUserLessons(userId, limit);
+    res.json({ lessons });
+  } catch (error) {
+    console.error('Error fetching lessons:', error);
+    res.status(500).json({ 
+      error: 'Internal server error',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Get a specific lesson
+app.get('/api/lessons/:lessonId/details', async (req, res) => {
+  try {
+    const { lessonId } = req.params;
+    const lesson = await lessonService.getLesson(lessonId);
+
+    if (!lesson) {
+      return res.status(404).json({ error: 'Lesson not found' });
+    }
+
+    res.json({ lesson });
+  } catch (error) {
+    console.error('Error fetching lesson:', error);
+    res.status(500).json({ 
+      error: 'Internal server error',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// End a lesson
+app.post('/api/lessons/:lessonId/end', async (req, res) => {
+  try {
+    const { lessonId } = req.params;
+    const lesson = await lessonService.endLesson(lessonId);
+
+    if (!lesson) {
+      return res.status(404).json({ error: 'Lesson not found' });
+    }
+
+    res.json({ lesson });
+  } catch (error) {
+    console.error('Error ending lesson:', error);
+    res.status(500).json({ 
+      error: 'Internal server error',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// ========== Review Endpoints ==========
+
+// Create a review
+app.post('/api/reviews', async (req, res) => {
+  try {
+    const { lessonId, learnerId, rating, comment } = req.body;
+
+    if (!lessonId || !learnerId || !rating) {
+      return res.status(400).json({ error: 'Missing required fields: lessonId, learnerId, rating' });
+    }
+
+    const review = await reviewService.createReview(lessonId, learnerId, rating, comment);
+    res.json({ review });
+  } catch (error) {
+    console.error('Error creating review:', error);
+    res.status(500).json({ 
+      error: 'Internal server error',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Get review for a lesson
+app.get('/api/reviews/lesson/:lessonId', async (req, res) => {
+  try {
+    const { lessonId } = req.params;
+    const review = await reviewService.getReviewByLesson(lessonId);
+
+    if (!review) {
+      return res.status(404).json({ error: 'Review not found' });
+    }
+
+    res.json({ review });
+  } catch (error) {
+    console.error('Error fetching review:', error);
+    res.status(500).json({ 
+      error: 'Internal server error',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Get all reviews for a fluent speaker
+app.get('/api/reviews/fluent/:fluentId', async (req, res) => {
+  try {
+    const { fluentId } = req.params;
+    const limit = parseInt(req.query.limit as string) || 50;
+
+    const reviews = await reviewService.getFluentReviews(fluentId, limit);
+    res.json({ reviews });
+  } catch (error) {
+    console.error('Error fetching reviews:', error);
+    res.status(500).json({ 
+      error: 'Internal server error',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Get composite rating for a fluent speaker
+app.get('/api/reviews/fluent/:fluentId/rating', async (req, res) => {
+  try {
+    const { fluentId } = req.params;
+    const rating = await reviewService.getFluentRating(fluentId);
+    res.json({ rating });
+  } catch (error) {
+    console.error('Error fetching rating:', error);
+    res.status(500).json({ 
+      error: 'Internal server error',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Check if a lesson has been reviewed
+app.get('/api/reviews/lesson/:lessonId/check', async (req, res) => {
+  try {
+    const { lessonId } = req.params;
+    const { learnerId } = req.query;
+
+    if (!learnerId) {
+      return res.status(400).json({ error: 'Missing learnerId query parameter' });
+    }
+
+    const hasReviewed = await reviewService.hasReviewedLesson(lessonId, learnerId as string);
+    res.json({ hasReviewed });
+  } catch (error) {
+    console.error('Error checking review:', error);
     res.status(500).json({ 
       error: 'Internal server error',
       message: error instanceof Error ? error.message : 'Unknown error'

@@ -73,6 +73,7 @@ export class MatchingService {
    */
   private createPartnerData(userData: UserData): PartnerData {
     return {
+      id: userData.id,
       username: userData.username,
       walletAddress: userData.walletAddress,
       language: userData.language,

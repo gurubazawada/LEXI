@@ -17,6 +17,7 @@ export interface PartnerData {
 export interface MatchedPayload {
   partner: PartnerData;
   userId: string;
+  lessonId?: string;
 }
 
 export interface QueuedPayload {
