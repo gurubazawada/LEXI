@@ -5,7 +5,7 @@ export interface UserData {
   role: 'learner' | 'fluent';
   language: string;
   timestamp: number;
-  socketId: string;
+  socketId?: string; // Optional - looked up dynamically from socket tracking service
 }
 
 export interface PartnerData {
