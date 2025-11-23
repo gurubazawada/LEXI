@@ -27,7 +27,7 @@ declare module 'next-auth' {
 // For more information on each option (and a full list of options) go to
 // https://authjs.dev/getting-started/authentication/credentials
 export const { handlers, signIn, signOut, auth } = NextAuth({
-  secret: process.env.NEXTAUTH_SECRET,
+  secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET,
   session: { 
     strategy: 'jwt',
     maxAge: 30 * 24 * 60 * 60, // 30 days
