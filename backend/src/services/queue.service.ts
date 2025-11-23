@@ -8,10 +8,14 @@ export class QueueService {
 
   /**
    * Add user to the appropriate queue
+   * Note: socketId is NOT stored in queue data - it's looked up dynamically
    */
   async joinQueue(userData: UserData): Promise<void> {
     const queueKey = this.getQueueKey(userData.role, userData.language);
-    const userJson = JSON.stringify(userData);
+    
+    // Remove socketId before storing to prevent stale socket IDs
+    const { socketId, ...userDataWithoutSocket } = userData;
+    const userJson = JSON.stringify(userDataWithoutSocket);
     
     // Add to queue (left push - FIFO with right pop)
     await redisClient.lPush(queueKey, userJson);

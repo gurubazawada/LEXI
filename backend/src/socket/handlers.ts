@@ -5,9 +5,20 @@ import { socketTrackingService } from '../services/socket-tracking.service.js';
 import { lessonService } from '../services/lesson.service.js';
 import type { JoinQueuePayload, UserData } from '../types/index.js';
 
+// Store disconnect timers for grace period
+const disconnectTimers = new Map<string, NodeJS.Timeout>();
+
 export function setupSocketHandlers(io: Server) {
   io.on('connection', (socket: Socket) => {
     console.log(`✓ Client connected: ${socket.id}`);
+    
+    // Check if this is a reconnection - cancel any pending disconnect timer
+    const existingUserId = socket.handshake.auth?.userId;
+    if (existingUserId && disconnectTimers.has(existingUserId)) {
+      clearTimeout(disconnectTimers.get(existingUserId)!);
+      disconnectTimers.delete(existingUserId);
+      console.log(`✓ Reconnection detected for user ${existingUserId} - grace period cancelled`);
+    }
 
     // Handle user joining queue
     socket.on('join_queue', async (payload: JoinQueuePayload) => {
@@ -56,11 +67,18 @@ export function setupSocketHandlers(io: Server) {
         
         // Store socket ID in Redis for WebRTC signaling
         await socketTrackingService.setUserSocket(finalUserId, socket.id);
+        
+        // Cancel any pending disconnect timer for this user (reconnection case)
+        if (disconnectTimers.has(finalUserId)) {
+          clearTimeout(disconnectTimers.get(finalUserId)!);
+          disconnectTimers.delete(finalUserId);
+          console.log(`✓ User ${finalUserId} reconnected - keeping queue position`);
+        }
 
         // Check if user is already in queue (shouldn't happen, but handle it)
         const wasInQueue = await queueService.isUserInQueue(finalUserId);
         
-        // Try to find a match immediately
+        // Try to find a match immediately (with socket validation and retries)
         const match = await matchingService.findMatch(userData);
 
         if (match) {
@@ -70,6 +88,16 @@ export function setupSocketHandlers(io: Server) {
           }
           
           // The matched user is already removed from queue and active_users by getNextFromQueue
+          
+          // CRITICAL: Validate that partner socket still exists (double-check)
+          const partnerSocket = io.sockets.sockets.get(match.socketId!);
+          if (!partnerSocket) {
+            console.error(`⚠️ Partner socket ${match.socketId} not found after match! Rolling back...`);
+            // Rollback the match
+            await matchingService.rollbackMatch(userData, match);
+            socket.emit('error', { message: 'Match failed - partner disconnected. Please try again.' });
+            return;
+          }
           
           // Create a lesson for this match
           let lessonId: string | undefined;
@@ -100,39 +128,51 @@ export function setupSocketHandlers(io: Server) {
             // Continue even if lesson creation fails
           }
           
-          // Match found! Notify both users
-          socket.emit('matched', {
-            partner: {
-              id: match.id,
-              username: match.username,
-              walletAddress: match.walletAddress,
-              language: match.language,
-              role: match.role,
-            },
-            userId: finalUserId,
-            lessonId,
-          });
+          // Wrap match notification in try-catch for rollback on failure
+          try {
+            // Match found! Notify both users
+            socket.emit('matched', {
+              partner: {
+                id: match.id,
+                username: match.username,
+                walletAddress: match.walletAddress,
+                language: match.language,
+                role: match.role,
+              },
+              userId: finalUserId,
+              lessonId,
+            });
 
-          // Notify the matched partner
-          const partnerSocket = io.sockets.sockets.get(match.socketId);
-          if (partnerSocket) {
+            // Store lesson ID in partner socket data
             partnerSocket.data.lessonId = lessonId;
             partnerSocket.data.partnerId = finalUserId;
+
+            // Notify the matched partner
+            io.to(match.socketId!).emit('matched', {
+              partner: {
+                id: finalUserId,
+                username: userData.username,
+                walletAddress: userData.walletAddress,
+                language: userData.language,
+                role: userData.role,
+              },
+              userId: match.id,
+              lessonId,
+            });
+
+            console.log(`✓ Match completed: ${userData.username} ↔ ${match.username}${lessonId ? ` (Lesson: ${lessonId})` : ''}`);
+          } catch (notificationError) {
+            console.error('⚠️ Failed to notify users of match. Rolling back...', notificationError);
+            
+            // Rollback the match
+            await matchingService.rollbackMatch(userData, match);
+            
+            // Notify both users of the error
+            socket.emit('error', { message: 'Match failed. Please try again.' });
+            if (partnerSocket) {
+              partnerSocket.emit('error', { message: 'Match failed. Please try again.' });
+            }
           }
-
-          io.to(match.socketId).emit('matched', {
-            partner: {
-              id: finalUserId,
-              username: userData.username,
-              walletAddress: userData.walletAddress,
-              language: userData.language,
-              role: userData.role,
-            },
-            userId: match.id,
-            lessonId,
-          });
-
-          console.log(`✓ Match completed: ${userData.username} ↔ ${match.username}${lessonId ? ` (Lesson: ${lessonId})` : ''}`);
         } else {
           // No match found, add to queue
           await queueService.joinQueue(userData);
@@ -175,19 +215,38 @@ export function setupSocketHandlers(io: Server) {
       }
     });
 
-    // Handle disconnection
+    // Handle disconnection with grace period
     socket.on('disconnect', async () => {
       try {
-        const { userId } = socket.data;
+        const { userId, role, language } = socket.data;
 
         if (userId) {
-          // Remove user from all queues
-          await queueService.removeUserFromAllQueues(userId);
+          console.log(`⏳ Client disconnected: ${socket.id} (User: ${userId}) - starting 10s grace period`);
           
-          // Remove socket tracking
-          await socketTrackingService.removeUserSocket(userId);
+          // Set a 10-second grace period before removing from queue
+          const timer = setTimeout(async () => {
+            try {
+              // Check if user is still in queue (they might have been matched during grace period)
+              const isInQueue = await queueService.isUserInQueue(userId);
+              
+              if (isInQueue) {
+                // Remove user from all queues
+                await queueService.removeUserFromAllQueues(userId);
+                console.log(`✗ Grace period expired: Removed ${userId} from queue`);
+              }
+              
+              // Remove socket tracking
+              await socketTrackingService.removeUserSocket(userId);
+              
+              // Clean up timer
+              disconnectTimers.delete(userId);
+            } catch (error) {
+              console.error('Error in disconnect grace period cleanup:', error);
+            }
+          }, 10000); // 10 second grace period
           
-          console.log(`✗ Client disconnected: ${socket.id} (User: ${userId})`);
+          // Store the timer so it can be cancelled on reconnection
+          disconnectTimers.set(userId, timer);
         } else {
           console.log(`✗ Client disconnected: ${socket.id}`);
         }
