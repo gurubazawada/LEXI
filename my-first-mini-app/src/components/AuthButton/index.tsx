@@ -2,6 +2,7 @@
 import { walletAuth } from '@/auth/wallet';
 import { Button } from '@worldcoin/mini-apps-ui-kit-react';
 import { useMiniKit } from 'minikit-js-dev-preview/minikit-provider';
+import { MiniKit, ISuccessResult } from 'minikit-js-dev-preview';
 import { useSession } from 'next-auth/react';
 import { useCallback, useState } from 'react';
 import { Wallet } from 'iconoir-react';
@@ -23,9 +24,37 @@ export const AuthButton = () => {
     setError(null);
     setIsPending(true);
     try {
-      await walletAuth();
+      // 1. Verify Personhood (World ID)
+      const appId = process.env.NEXT_PUBLIC_WLD_APP_ID;
+      const action = process.env.NEXT_PUBLIC_WLD_ACTION;
+
+      if (!appId || !action) {
+        console.error('World ID configuration missing in .env.local');
+        throw new Error('Configuration error');
+      }
+
+      const verifyResult = await MiniKit.commandsAsync.verify({
+        app_id: appId,
+        action: action,
+      });
+
+      // Check if verification was successful
+      if (!verifyResult) {
+        throw new Error('Verification cancelled');
+      }
+
+      if (verifyResult.finalPayload.status !== 'success') {
+        throw new Error('World ID verification failed');
+      }
+
+      // 2. Authenticate with Wallet (SIWE) + Proof
+      // Pass the successful proof to the wallet auth handler
+      await walletAuth({ 
+        proof: verifyResult.finalPayload as ISuccessResult 
+      });
+
     } catch (err) {
-      console.error('Wallet authentication error', err);
+      console.error('Authentication error', err);
       setError('Authentication failed. Please try again.');
       setIsPending(false);
       return;

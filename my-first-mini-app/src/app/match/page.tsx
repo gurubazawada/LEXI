@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from '@worldcoin/mini-apps-ui-kit-react';
-import { User, Check, Language } from 'iconoir-react';
 import { useMiniKit } from 'minikit-js-dev-preview/minikit-provider';
 import {
   MiniKit,
@@ -597,7 +596,7 @@ export default function MatchPage() {
           <div className="grid grid-cols-3 gap-3">
             {/* Total Chats */}
             <div className="bg-white dark:bg-black border-2 border-gray-200 dark:border-gray-800 hover:border-opacity-50 rounded-xl p-4 flex flex-col items-center justify-center transition-all" style={{ '--hover-border': '#0f52aa' } as React.CSSProperties}>
-              <AnimatedLexi variant="logo" size={40} className="mb-2" />
+              <AnimatedLexi variant="speak" size={40} className="mb-2" />
               <p className="text-2xl font-bold text-black dark:text-white">{stats.totalChats}</p>
               <p className="text-xs text-gray-600 dark:text-gray-400 text-center">Chats</p>
             </div>
@@ -611,7 +610,7 @@ export default function MatchPage() {
 
             {/* Community Rank */}
             <div className="bg-white dark:bg-black border-2 border-gray-200 dark:border-gray-800 hover:border-opacity-50 rounded-xl p-4 flex flex-col items-center justify-center transition-all" style={{ '--hover-border': '#0f52aa' } as React.CSSProperties}>
-              <div className="text-2xl mb-2">🏅</div>
+              <AnimatedLexi variant="medal" size={40} className="mb-2" />
               <p className="text-xl font-bold text-black dark:text-white">{stats.communityRank}</p>
               <p className="text-xs text-gray-600 dark:text-gray-400 text-center">Rank</p>
             </div>
@@ -623,9 +622,12 @@ export default function MatchPage() {
           {status === 'idle' && (
             <div className="bg-white dark:bg-black border-2 rounded-2xl p-6 space-y-6" style={{ borderColor: '#0f52aa20' }}>
 
-              {/* Lexi Idle Character */}
+              {/* Lexi Character */}
               <div className="flex justify-center">
-                <AnimatedLexi variant="idle" size={150} />
+                <AnimatedLexi
+                  variant={role === 'learner' ? 'study' : role === 'fluent' ? 'teach' : 'idle'}
+                  size={150}
+                />
               </div>
 
               {/* Role Selection */}
@@ -641,7 +643,7 @@ export default function MatchPage() {
                     }`}
                     style={role === 'learner' ? { borderColor: '#0f52aa' } : {}}
                   >
-                    <User className={`h-5 w-5 mb-2 ${role === 'learner' ? '' : ''}`} strokeWidth={2} style={role === 'learner' ? { color: '#0f52aa' } : {}} />
+                    <AnimatedLexi variant="study" size={32} className="mb-2" />
                     <span className={`font-medium text-sm ${role === 'learner' ? '' : ''}`} style={role === 'learner' ? { color: '#0f52aa' } : {}}>Learner</span>
                   </button>
                   <button
@@ -653,7 +655,7 @@ export default function MatchPage() {
                     }`}
                     style={role === 'fluent' ? { borderColor: '#0f52aa' } : {}}
                   >
-                    <Check className={`h-5 w-5 mb-2 ${role === 'fluent' ? '' : ''}`} strokeWidth={2} style={role === 'fluent' ? { color: '#0f52aa' } : {}} />
+                    <AnimatedLexi variant="teach" size={32} className="mb-2" />
                     <span className={`font-medium text-sm ${role === 'fluent' ? '' : ''}`} style={role === 'fluent' ? { color: '#0f52aa' } : {}}>Fluent Guide</span>
                   </button>
                 </div>
@@ -661,10 +663,7 @@ export default function MatchPage() {
 
               {/* Language Selection */}
               <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <AnimatedLexi variant="world" size={24} />
-                  <label className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Language</label>
-                </div>
+                <label className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Language</label>
                 <select
                   value={language}
                   onChange={(e) => setLanguage(e.target.value)}

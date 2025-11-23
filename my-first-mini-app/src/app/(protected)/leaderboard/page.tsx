@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Image from 'next/image';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { fetchLeaderboard } from '@/lib/api';
@@ -125,10 +126,16 @@ export default function LeaderboardPage() {
                     {/* 2nd Place - Silver (Medium Height) */}
                     <div className="flex-1 max-w-[120px]">
                       <div className="flex flex-col items-center">
-                        {/* Medal */}
+                        {/* Lexi Silver */}
                         <div className="mb-2 relative">
-                          <div className="w-16 h-16 rounded-full bg-gradient-to-br from-gray-300 to-gray-500 flex items-center justify-center shadow-lg border-2 border-gray-400">
-                            <Medal className="w-10 h-10 text-white" />
+                          <div className="w-16 h-16 rounded-full bg-gradient-to-br from-gray-300 to-gray-500 flex items-center justify-center shadow-lg border-2 border-gray-400 overflow-hidden">
+                            <Image
+                              src="/lexi_silver_2.png"
+                              alt="Silver Medal Lexi"
+                              width={64}
+                              height={64}
+                              className="object-contain"
+                            />
                           </div>
                           <Badge className="absolute -top-2 -right-2 bg-gray-500 text-white border-2 border-white shadow-md">
                             #2
@@ -153,10 +160,16 @@ export default function LeaderboardPage() {
                     {/* 1st Place - Gold (Tallest) */}
                     <div className="flex-1 max-w-[140px]">
                       <div className="flex flex-col items-center">
-                        {/* Medal */}
+                        {/* Lexi Gold */}
                         <div className="mb-2 relative">
-                          <div className="w-20 h-20 rounded-full bg-gradient-to-br from-yellow-400 via-yellow-500 to-yellow-600 flex items-center justify-center shadow-xl border-4 border-yellow-700">
-                            <Medal className="w-12 h-12 text-yellow-800" />
+                          <div className="w-20 h-20 rounded-full bg-gradient-to-br from-yellow-400 via-yellow-500 to-yellow-600 flex items-center justify-center shadow-xl border-4 border-yellow-700 overflow-hidden">
+                            <Image
+                              src="/lexi_gold_2.png"
+                              alt="Gold Medal Lexi"
+                              width={80}
+                              height={80}
+                              className="object-contain"
+                            />
                           </div>
                           <Badge className="absolute -top-2 -right-2 bg-yellow-600 text-white border-2 border-white shadow-lg font-bold">
                             #1
@@ -181,10 +194,16 @@ export default function LeaderboardPage() {
                     {/* 3rd Place - Bronze (Shortest) */}
                     <div className="flex-1 max-w-[120px]">
                       <div className="flex flex-col items-center">
-                        {/* Medal */}
+                        {/* Lexi Bronze */}
                         <div className="mb-2 relative">
-                          <div className="w-16 h-16 rounded-full bg-gradient-to-br from-amber-600 to-amber-800 flex items-center justify-center shadow-lg border-2 border-amber-900">
-                            <Medal className="w-10 h-10 text-amber-200" />
+                          <div className="w-16 h-16 rounded-full bg-gradient-to-br from-amber-600 to-amber-800 flex items-center justify-center shadow-lg border-2 border-amber-900 overflow-hidden">
+                            <Image
+                              src="/lexi_bronze_2.png"
+                              alt="Bronze Medal Lexi"
+                              width={64}
+                              height={64}
+                              className="object-contain"
+                            />
                           </div>
                           <Badge className="absolute -top-2 -right-2 bg-amber-700 text-white border-2 border-white shadow-md">
                             #3
