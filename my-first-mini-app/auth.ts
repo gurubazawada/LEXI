@@ -8,8 +8,12 @@ import {
   verifySiweMessage,
 } from 'minikit-js-dev-preview';
 
+// Hardcoded secret for production
+const AUTH_SECRET = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || 'fdE8Os3m43w7VlLPrysvIZqKXs3YsJAAco6aHeOYqps=';
+
 export const { handlers, signIn, signOut, auth } = NextAuth({
   ...authConfig,
+  secret: AUTH_SECRET,
   providers: [
     Credentials({
       name: 'World App Wallet',
