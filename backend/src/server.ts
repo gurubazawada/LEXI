@@ -11,6 +11,7 @@ import { enableNotificationsForUser, disableNotificationsForUser, hasNotificatio
 import { lessonService } from './services/lesson.service.js';
 import { reviewService } from './services/review.service.js';
 import { leaderboardService } from './services/leaderboard.service.js';
+import { getRandomPrompt } from './services/prompts.service.js';
 
 // Load environment variables from backend directory
 const __filename = fileURLToPath(import.meta.url);
@@ -372,6 +373,33 @@ app.get('/api/reviews/lesson/:lessonId/check', async (req, res) => {
     res.json({ hasReviewed });
   } catch (error) {
     console.error('Error checking review:', error);
+    res.status(500).json({ 
+      error: 'Internal server error',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// ========== Prompt Endpoints ==========
+
+// Get a random prompt for a language
+app.get('/api/prompts/random', async (req, res) => {
+  try {
+    const { language } = req.query;
+
+    if (!language || typeof language !== 'string') {
+      return res.status(400).json({ error: 'Missing or invalid language parameter' });
+    }
+
+    const prompt = await getRandomPrompt(language);
+
+    if (!prompt) {
+      return res.status(404).json({ error: `No prompts found for language: ${language}` });
+    }
+
+    res.json({ prompt });
+  } catch (error) {
+    console.error('Error fetching random prompt:', error);
     res.status(500).json({ 
       error: 'Internal server error',
       message: error instanceof Error ? error.message : 'Unknown error'

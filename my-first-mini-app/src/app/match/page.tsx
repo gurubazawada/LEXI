@@ -17,6 +17,7 @@ import { useSocket } from '@/hooks/useSocket';
 import type { MatchedPayload, QueuedPayload, ErrorPayload } from '@/hooks/useSocket';
 import type { UserStats } from '@/types/stats';
 import { Navigation } from '@/components/Navigation';
+import { fetchRandomPrompt } from '@/lib/api';
 
 const languages = [
   { value: "es", label: "Spanish" },
@@ -61,6 +62,7 @@ export default function MatchPage() {
   const [chatSent, setChatSent] = useState(false);
   const [chatError, setChatError] = useState<string | null>(null);
   const [stats, setStats] = useState<UserStats>({ totalChats: 0, currentStreak: 0, communityRank: '--' });
+  const [prompt, setPrompt] = useState<string | null>(null);
   const chatSubscriptionRef = useRef<(() => void) | void | null>(null);
   const { isInstalled } = useMiniKit();
   const { data: session, status: sessionStatus } = useSession();
@@ -181,8 +183,9 @@ export default function MatchPage() {
           return;
         }
 
-        const languageLabel = languages.find(l => l.value === language)?.label || language;
-        const message = `Hi! We matched for ${languageLabel} practice. I'm a ${role} and you're a ${partnerData.role}. Let's start practicing!`;
+        // Use prompt if available, otherwise use fallback message
+        const promptText = prompt || 'Let\'s start practicing!';
+        const message = `${promptText} We matched!`;
 
         const payload: ChatPayload = {
           message,
@@ -207,7 +210,7 @@ export default function MatchPage() {
         setChatError(error.message || 'Failed to open chat');
       }
     },
-    [isInstalled, chatSent, language, role]
+    [isInstalled, chatSent, language, role, prompt]
   );
 
   const reset = useCallback(() => {
@@ -217,7 +220,26 @@ export default function MatchPage() {
     setPartner(null);
     setChatSent(false);
     setChatError(null);
+    setPrompt(null);
   }, [leaveQueue]);
+
+  // Fetch prompt when matched
+  useEffect(() => {
+    const fetchPrompt = async () => {
+      if (status === 'matched' && language) {
+        try {
+          const response = await fetchRandomPrompt(language);
+          setPrompt(response.prompt);
+        } catch (error) {
+          console.error('Failed to fetch prompt:', error);
+          // Set a fallback message if prompt fetch fails
+          setPrompt(null);
+        }
+      }
+    };
+
+    fetchPrompt();
+  }, [status, language]);
 
   // Setup Socket.io event listeners
   useEffect(() => {

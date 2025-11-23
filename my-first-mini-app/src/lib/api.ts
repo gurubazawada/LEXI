@@ -76,3 +76,11 @@ export async function fetchFluentLeaderboardEntry(fluentId: string): Promise<{ e
   return response.json();
 }
 
+export async function fetchRandomPrompt(language: string): Promise<{ prompt: string }> {
+  const response = await fetch(`${API_BASE_URL}/api/prompts/random?language=${encodeURIComponent(language)}`);
+  if (!response.ok) {
+    throw new Error('Failed to fetch prompt');
+  }
+  return response.json();
+}
+
