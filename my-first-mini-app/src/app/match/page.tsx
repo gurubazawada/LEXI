@@ -185,10 +185,11 @@ export default function MatchPage() {
 
         const payload: ChatPayload = {
           message,
-          to: recipient,
+          to: recipient, // This auto-selects the recipient in the chat modal
         };
 
-        console.log('Sending chat with payload:', payload);
+        console.log('📤 Opening chat with recipient:', recipient);
+        console.log('📤 Full payload:', payload);
 
         const { finalPayload } = await MiniKit.commandsAsync.chat(payload);
 
