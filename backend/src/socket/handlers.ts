@@ -218,11 +218,14 @@ export function setupSocketHandlers(io: Server) {
           // No match found, add to queue
           await queueService.joinQueue(userData);
           
-          // Get queue size and notify user
+          // Get queue size and position
           const queueSize = await queueService.getQueueSize(role, language);
+          const position = await queueService.getQueuePosition(finalUserId, role, language);
+          
           socket.emit('queued', {
             message: 'Added to queue. Waiting for a partner...',
             queueSize,
+            position,
             userId: finalUserId,
           });
         }

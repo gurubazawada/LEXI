@@ -287,6 +287,7 @@ export default function MatchPage() {
   const [role, setRole] = useState<'learner' | 'fluent'>('learner');
   const [language, setLanguage] = useState<string>('');
   const [status, setStatus] = useState<QueueState>('idle');
+  const [queuePosition, setQueuePosition] = useState<number | null>(null);
   const [partner, setPartner] = useState<Partner | null>(null);
   const [chatSent, setChatSent] = useState(false);
   const [chatError, setChatError] = useState<string | null>(null);
@@ -465,6 +466,7 @@ export default function MatchPage() {
     leaveQueue();
 
     setStatus('idle');
+    setQueuePosition(null);
     setPartner(null);
     setChatSent(false);
     setChatError(null);
@@ -502,11 +504,15 @@ export default function MatchPage() {
     const handleQueued = (data: QueuedPayload) => {
       console.log('Queued:', data);
       setStatus('queued');
+      if (data.position) {
+        setQueuePosition(data.position);
+      }
     };
 
     const handleMatchCancelled = () => {
       console.log('Match cancelled by server');
       setStatus('idle');
+      setQueuePosition(null);
       setPartner(null);
       setChatSent(false);
       setChatError(null);
@@ -678,6 +684,14 @@ export default function MatchPage() {
                       {languages.find(l => l.value === language)?.label}
                     </span>
                   </p>
+                  
+                  {queuePosition !== null && (
+                    <div className="mt-2 p-3 bg-gray-50 dark:bg-gray-900 rounded-lg text-center w-full">
+                        <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                            People ahead of you: <span className="font-bold text-black dark:text-white">{Math.max(0, queuePosition - 1)}</span>
+                        </p>
+                    </div>
+                  )}
                 </div>
 
                 {status === 'queued' && (

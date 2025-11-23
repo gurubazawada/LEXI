@@ -99,6 +99,30 @@ export class QueueService {
   }
 
   /**
+   * Get user's position in the queue (1 = next to be matched)
+   * Returns -1 if not found
+   */
+  async getQueuePosition(userId: string, role: 'learner' | 'fluent', language: string): Promise<number> {
+    const queueKey = this.getQueueKey(role, language);
+    const queueItems = await redisClient.lRange(queueKey, 0, -1);
+    
+    // Find index of user (0 is newest/last added, N-1 is oldest/next to pop)
+    // Since we rPop (take from right), the user at index length-1 is position 1.
+    // The user at index 0 is position length.
+    
+    for (let i = 0; i < queueItems.length; i++) {
+      const user = JSON.parse(queueItems[i]) as UserData;
+      if (user.id === userId) {
+        // Position 1 is the item at index length-1
+        // Position = length - index
+        return queueItems.length - i;
+      }
+    }
+    
+    return -1;
+  }
+
+  /**
    * Get the next user from the opposite queue (for matching)
    */
   async getNextFromQueue(role: 'learner' | 'fluent', language: string): Promise<UserData | null> {
