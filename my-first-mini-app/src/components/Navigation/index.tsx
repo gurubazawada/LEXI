@@ -1,7 +1,7 @@
 'use client';
 
 import { TabItem, Tabs } from '@worldcoin/mini-apps-ui-kit-react';
-import { Home, ChatBubble, Trophy } from 'iconoir-react';
+import { Book, ChatBubble, Trophy } from 'iconoir-react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
@@ -15,12 +15,12 @@ import { useEffect, useState } from 'react';
 export const Navigation = () => {
   const router = useRouter();
   const pathname = usePathname();
-  const [value, setValue] = useState('home');
+  const [value, setValue] = useState('lessons');
 
   // Update tab value based on current pathname
   useEffect(() => {
-    if (pathname === '/home' || pathname === '/') {
-      setValue('home');
+    if (pathname === '/lessons' || pathname === '/') {
+      setValue('lessons');
     } else if (pathname === '/match') {
       setValue('match');
     } else if (pathname === '/leaderboard') {
@@ -30,8 +30,8 @@ export const Navigation = () => {
 
   const handleValueChange = (newValue: string) => {
     setValue(newValue);
-    if (newValue === 'home') {
-      router.push('/home');
+    if (newValue === 'lessons') {
+      router.push('/lessons');
     } else if (newValue === 'match') {
       router.push('/match');
     } else if (newValue === 'leaderboard') {
@@ -41,7 +41,7 @@ export const Navigation = () => {
 
   return (
     <Tabs value={value} onValueChange={handleValueChange}>
-      <TabItem value="home" icon={<Home />} label="Home" />
+      <TabItem value="lessons" icon={<Book />} label="Lessons" />
       <TabItem value="match" icon={<ChatBubble />} label="Match" />
       <TabItem value="leaderboard" icon={<Trophy />} label="Leaderboard" />
     </Tabs>
