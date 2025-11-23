@@ -11,7 +11,11 @@ type LexiVariant =
   | "streak"
   | "success"
   | "world"
-  | "logo";
+  | "logo"
+  | "speak"
+  | "medal"
+  | "study"
+  | "teach";
 
 type AnimationType = "pulse" | "none";
 
@@ -32,6 +36,10 @@ const LEXI_IMAGES: Record<LexiVariant, string> = {
   success: "/lexi_success_2.png",
   world: "/lexi_world.png",
   logo: "/lexi_logo.png",
+  speak: "/lexi_speak_2.png",
+  medal: "/lexi_medal_2.png",
+  study: "/lexi_study_2.png",
+  teach: "/lexi_teach_2.png",
 };
 
 const ANIMATION_VARIANTS = {
