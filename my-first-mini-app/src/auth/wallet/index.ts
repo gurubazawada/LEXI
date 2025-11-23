@@ -1,20 +1,22 @@
-import { MiniKit } from 'minikit-js-dev-preview';
+import { MiniKit, ISuccessResult } from 'minikit-js-dev-preview';
 import { signIn } from 'next-auth/react';
 import { getNewNonces } from './server-helpers';
 import { requestNotificationPermission } from './request-notifications';
 
+interface WalletAuthProps {
+  proof?: ISuccessResult;
+}
+
 /**
  * Authenticates a user via their wallet using a nonce-based challenge-response mechanism.
- *
- * This function generates a unique `nonce` and requests the user to sign it with their wallet,
- * producing a `signedNonce`. The `signedNonce` ensures the response we receive from wallet auth
- * is authentic and matches our session creation.
+ * Optionally accepts a World ID Proof to verify personhood alongside wallet ownership.
  *
  * @returns {Promise<SignInResponse>} The result of the sign-in attempt.
  * @throws {Error} If wallet authentication fails at any step.
  */
-export const walletAuth = async () => {
+export const walletAuth = async (props?: WalletAuthProps) => {
   const { nonce, signedNonce } = await getNewNonces();
+  const proof = props?.proof;
 
   const result = await MiniKit.commandsAsync.walletAuth({
     nonce,
@@ -42,6 +44,11 @@ export const walletAuth = async () => {
     nonce,
     signedNonce,
     finalPayloadJson: JSON.stringify(result.finalPayload),
+    // Pass World ID proof fields if available
+    proof: proof?.proof ?? '',
+    merkle_root: proof?.merkle_root ?? '',
+    nullifier_hash: proof?.nullifier_hash ?? '',
+    verification_level: proof?.verification_level ?? '',
   });
   
   // Request notification permission after successful authentication
