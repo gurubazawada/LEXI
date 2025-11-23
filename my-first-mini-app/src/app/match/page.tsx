@@ -30,6 +30,154 @@ const languages = [
   { value: "zh", label: "Mandarin" },
 ];
 
+// Predefined "we matched" variations in each language
+const MATCHED_MESSAGES: Record<string, string[]> = {
+  en: [
+    "We matched!",
+    "We're matched!",
+    "Match found!",
+    "We got matched!",
+    "Perfect match!",
+  ],
+  es: [
+    "¡Hemos hecho match!",
+    "¡Hemos coincidido!",
+    "¡Encontramos match!",
+    "¡Match encontrado!",
+    "¡Coincidencia perfecta!",
+  ],
+  fr: [
+    "Nous avons matché !",
+    "Nous sommes matchés !",
+    "Match trouvé !",
+    "On a matché !",
+    "Match parfait !",
+  ],
+  de: [
+    "Wir haben gematcht!",
+    "Wir sind gematcht!",
+    "Match gefunden!",
+    "Wir haben ein Match!",
+    "Perfektes Match!",
+  ],
+  jp: [
+    "マッチしました！",
+    "マッチが見つかりました！",
+    "マッチング成功！",
+    "完璧なマッチです！",
+    "マッチングしました！",
+  ],
+  pt: [
+    "Fizemos match!",
+    "Encontramos match!",
+    "Match encontrado!",
+    "Conseguimos match!",
+    "Match perfeito!",
+  ],
+  it: [
+    "Abbiamo fatto match!",
+    "Siamo matchati!",
+    "Match trovato!",
+    "Abbiamo trovato un match!",
+    "Match perfetto!",
+  ],
+  zh: [
+    "我们匹配了！",
+    "找到匹配了！",
+    "匹配成功！",
+    "我们配对成功了！",
+    "完美匹配！",
+  ],
+};
+
+/**
+ * Get a random "we matched" message in the specified language
+ * @param language - Language code (e.g., 'en', 'es', 'fr')
+ * @returns A random matched message in the specified language, or English fallback
+ */
+function getRandomMatchedMessage(language: string): string {
+  const messages = MATCHED_MESSAGES[language] || MATCHED_MESSAGES['en'];
+  const randomIndex = Math.floor(Math.random() * messages.length);
+  return messages[randomIndex];
+}
+
+// Boilerplate text for intro message in each language
+const BOILERPLATE_TEXT: Record<string, { tip: string; call: string; sessionEnds: string }> = {
+  en: {
+    tip: "If you would like to tip, send here",
+    call: "If you would like to call, send phone number",
+    sessionEnds: "Session ends at",
+  },
+  es: {
+    tip: "Si quieres dar propina, envía aquí",
+    call: "Si quieres llamar, envía número de teléfono",
+    sessionEnds: "La sesión termina a las",
+  },
+  fr: {
+    tip: "Si vous souhaitez donner un pourboire, envoyez ici",
+    call: "Si vous souhaitez appeler, envoyez le numéro de téléphone",
+    sessionEnds: "La session se termine à",
+  },
+  de: {
+    tip: "Wenn du ein Trinkgeld geben möchtest, sende hier",
+    call: "Wenn du anrufen möchtest, sende die Telefonnummer",
+    sessionEnds: "Die Sitzung endet um",
+  },
+  jp: {
+    tip: "チップを送りたい場合は、ここに送信してください",
+    call: "電話をかけたい場合は、電話番号を送信してください",
+    sessionEnds: "セッションは",
+  },
+  pt: {
+    tip: "Se quiser dar gorjeta, envie aqui",
+    call: "Se quiser ligar, envie o número de telefone",
+    sessionEnds: "A sessão termina às",
+  },
+  it: {
+    tip: "Se vuoi dare una mancia, invia qui",
+    call: "Se vuoi chiamare, invia il numero di telefono",
+    sessionEnds: "La sessione termina alle",
+  },
+  zh: {
+    tip: "如果你想给小费，请在这里发送",
+    call: "如果你想打电话，请发送电话号码",
+    sessionEnds: "会话结束时间",
+  },
+};
+
+/**
+ * Format time as HH:MM
+ */
+function formatTime(date: Date): string {
+  const hours = date.getHours().toString().padStart(2, '0');
+  const minutes = date.getMinutes().toString().padStart(2, '0');
+  return `${hours}:${minutes}`;
+}
+
+/**
+ * Get boilerplate text for intro message (always in English)
+ * @returns Boilerplate text with session end time (current time + 15 minutes)
+ */
+function getBoilerplateText(): string {
+  const boilerplate = BOILERPLATE_TEXT['en']; // Always use English
+  const sessionEndTime = new Date(Date.now() + 15 * 60 * 1000); // Current time + 15 minutes
+  const formattedTime = formatTime(sessionEndTime);
+  
+  return `\n\n${boilerplate.tip}\n${boilerplate.call}\n${boilerplate.sessionEnds} ${formattedTime}`;
+}
+
+// Fallback messages in each language
+const fallbackMessages: Record<string, string> = {
+  en: "Let's start practicing!",
+  es: "¡Empecemos a practicar!",
+  fr: "Commençons à pratiquer !",
+  de: "Lass uns üben!",
+  jp: "練習を始めましょう！",
+  pt: "Vamos começar a praticar!",
+  it: "Iniziamo a praticare!",
+  zh: "让我们开始练习吧！",
+};
+
 type QueueState = 'idle' | 'loading' | 'queued' | 'matched';
 type Partner = {
   username?: string;
@@ -183,9 +331,14 @@ export default function MatchPage() {
           return;
         }
 
-        // Use prompt if available, otherwise use fallback message
-        const promptText = prompt || 'Let\'s start practicing!';
-        const message = `${promptText} We matched!`;
+        // Use prompt if available, otherwise use language-specific fallback message
+        // The prompt from backend is already in the correct language
+        const promptText = prompt || fallbackMessages[language] || fallbackMessages['en'];
+        // Get a random "we matched" message in the same language
+        const matchedText = getRandomMatchedMessage(language);
+        // Get boilerplate text (tipping, calling, session end time) - always in English
+        const boilerplate = getBoilerplateText();
+        const message = `${promptText} ${matchedText}${boilerplate}`;
 
         const payload: ChatPayload = {
           message,
