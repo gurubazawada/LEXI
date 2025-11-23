@@ -291,7 +291,7 @@ export default function MatchPage() {
   const [partner, setPartner] = useState<Partner | null>(null);
   const [chatSent, setChatSent] = useState(false);
   const [chatError, setChatError] = useState<string | null>(null);
-  const [stats, setStats] = useState<UserStats>({ totalChats: 0, currentStreak: 0, communityRank: '--' });
+  const [stats, setStats] = useState<UserStats>({ totalChats: 0, currentStreak: 0, communityRank: 'Unranked' });
   const [prompt, setPrompt] = useState<string | null>(null);
   const chatSubscriptionRef = useRef<(() => void) | void | null>(null);
   const { isInstalled } = useMiniKit();

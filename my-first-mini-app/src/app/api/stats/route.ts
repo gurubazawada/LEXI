@@ -26,7 +26,7 @@ export async function GET() {
     
     let totalChats = 0;
     let currentStreak = 0;
-    let communityRank = '--';
+    let rank: number | null = null;
     
     // Fetch lessons from backend to count total chats
     try {
@@ -45,32 +45,33 @@ export async function GET() {
 
     // Fetch user's rank from leaderboard
     try {
-      const leaderboardResponse = await fetch(`${API_BASE_URL}/api/leaderboard?limit=1000`);
-      if (leaderboardResponse.ok) {
-        const leaderboardData = await leaderboardResponse.json();
-        // Check both fluentId and fluentWalletAddress since fluentId might be the wallet address
-        const userEntry = leaderboardData.leaderboard.find(
-          (entry: any) => 
-            entry.fluentId === walletAddress || 
-            entry.fluentWalletAddress === walletAddress
-        );
-        
-        if (userEntry) {
-          const rank = userEntry.rank;
-          if (rank === 1) {
-            communityRank = '#1';
-          } else if (rank === 2) {
-            communityRank = '#2';
-          } else if (rank === 3) {
-            communityRank = '#3';
-          } else {
-            communityRank = `#${rank}`;
+      // First try the direct lookup endpoint for precise rank, regardless of position
+      const directResponse = await fetch(`${API_BASE_URL}/api/leaderboard/${walletAddress}`);
+      if (directResponse.ok) {
+        const directData = await directResponse.json();
+        rank = directData?.entry?.rank ?? null;
+      } else {
+        // Fallback to a broader leaderboard slice
+        const leaderboardResponse = await fetch(`${API_BASE_URL}/api/leaderboard?limit=2000`);
+        if (leaderboardResponse.ok) {
+          const leaderboardData = await leaderboardResponse.json();
+          // Check both fluentId and fluentWalletAddress since fluentId might be the wallet address
+          const userEntry = leaderboardData.leaderboard.find(
+            (entry: any) => 
+              entry.fluentId === walletAddress || 
+              entry.fluentWalletAddress === walletAddress
+          );
+          if (userEntry) {
+            rank = userEntry.rank;
           }
         }
       }
     } catch (error) {
       console.error('Error fetching leaderboard for rank:', error);
     }
+
+    // Format rank display
+    const communityRank = rank === null ? 'Unranked' : `#${rank}`;
 
     const stats: UserStats = {
       totalChats,
