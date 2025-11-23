@@ -22,7 +22,7 @@ export default function LeaderboardPage() {
   const loadLeaderboard = async () => {
     try {
       setLoading(true);
-      const data = await fetchLeaderboard(100);
+      const data = await fetchLeaderboard(20); // Only fetch top 20
       setLeaderboard(data.leaderboard);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load leaderboard');
@@ -220,39 +220,23 @@ export default function LeaderboardPage() {
               </Card>
             )}
 
-            {/* Full Leaderboard List */}
-            <div className="space-y-2">
-              <h2 className="text-lg font-semibold px-2">All Rankings</h2>
-              {leaderboard.map((entry, index) => {
-                const isTopThree = entry.rank <= 3;
-                return (
+            {/* Rest of Top 20 Leaderboard List (excluding top 3) */}
+            {leaderboard.length > 3 && (
+              <div className="space-y-2">
+                <h2 className="text-lg font-semibold px-2">Top 20 Rankings</h2>
+                {leaderboard.slice(3).map((entry) => (
                   <Card
                     key={entry.fluentId}
-                    className={cn(
-                      'transition-shadow',
-                      isTopThree && 'border-2 shadow-md',
-                      entry.rank === 1 && 'border-yellow-400',
-                      entry.rank === 2 && 'border-gray-400',
-                      entry.rank === 3 && 'border-amber-600'
-                    )}
+                    className="transition-shadow hover:shadow-md"
                   >
                     <CardContent className="pt-4">
                       <div className="flex items-center gap-4">
                         {/* Rank */}
                         <div className="flex-shrink-0 w-12 text-center">
-                          {isTopThree ? (
-                            <div className="flex flex-col items-center">
-                              {getRankIcon(entry.rank)}
-                              <Badge className={cn('mt-1 text-xs', getRankBadgeColor(entry.rank))}>
-                                #{entry.rank}
-                              </Badge>
-                            </div>
-                          ) : (
-                            <div className="flex flex-col items-center">
-                              <Award className="w-5 h-5 text-gray-400" />
-                              <span className="text-sm font-semibold text-gray-600 mt-1">#{entry.rank}</span>
-                            </div>
-                          )}
+                          <div className="flex flex-col items-center">
+                            <Award className="w-5 h-5 text-gray-400" />
+                            <span className="text-sm font-semibold text-gray-600 mt-1">#{entry.rank}</span>
+                          </div>
                         </div>
 
                         {/* User Info */}
@@ -278,9 +262,9 @@ export default function LeaderboardPage() {
                       </div>
                     </CardContent>
                   </Card>
-                );
-              })}
-            </div>
+                ))}
+              </div>
+            )}
           </>
         )}
       </Page.Main>
