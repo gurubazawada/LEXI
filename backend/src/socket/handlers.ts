@@ -20,6 +20,12 @@ export function setupSocketHandlers(io: Server) {
       console.log(`✓ Reconnection detected for user ${existingUserId} - grace period cancelled`);
     }
 
+    // Handle ping-pong for responsiveness validation
+    socket.on('pong', () => {
+      // Client responded to ping - they're alive and responsive
+      socket.data.lastPong = Date.now();
+    });
+
     // Handle user joining queue
     socket.on('join_queue', async (payload: JoinQueuePayload) => {
       try {
@@ -78,8 +84,8 @@ export function setupSocketHandlers(io: Server) {
         // Check if user is already in queue (shouldn't happen, but handle it)
         const wasInQueue = await queueService.isUserInQueue(finalUserId);
         
-        // Try to find a match immediately (with socket validation and retries)
-        const match = await matchingService.findMatch(userData);
+        // Try to find a match immediately (with socket validation, ping validation, and retries)
+        const match = await matchingService.findMatch(userData, io);
 
         if (match) {
           // Match found! Remove current user from queue if they were in it

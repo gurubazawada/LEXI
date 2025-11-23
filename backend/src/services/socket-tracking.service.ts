@@ -1,4 +1,5 @@
 import { redisClient } from '../config/redis.js';
+import type { Server } from 'socket.io';
 
 export class SocketTrackingService {
   private getSocketKey(userId: string): string {
@@ -38,6 +39,38 @@ export class SocketTrackingService {
   async refreshUserSocket(userId: string): Promise<void> {
     const key = this.getSocketKey(userId);
     await redisClient.expire(key, 3600);
+  }
+
+  /**
+   * Ping a user to verify they are responsive
+   * Returns true if user responds within timeout, false otherwise
+   */
+  async pingUser(io: Server, socketId: string, timeoutMs: number = 2000): Promise<boolean> {
+    return new Promise((resolve) => {
+      const socket = io.sockets.sockets.get(socketId);
+      
+      if (!socket) {
+        resolve(false);
+        return;
+      }
+      
+      let responded = false;
+      const timeout = setTimeout(() => {
+        if (!responded) {
+          socket.off('pong', pongHandler);
+          resolve(false);
+        }
+      }, timeoutMs);
+      
+      const pongHandler = () => {
+        responded = true;
+        clearTimeout(timeout);
+        resolve(true);
+      };
+      
+      socket.once('pong', pongHandler);
+      socket.emit('ping');
+    });
   }
 }
 

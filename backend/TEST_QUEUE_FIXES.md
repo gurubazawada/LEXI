@@ -42,6 +42,18 @@ curl -X POST http://localhost:4000/test/join \
 # 5. User B should remain in queue, not get stuck
 ```
 
+### Test 3b: Ping Validation (Unresponsive User)
+```bash
+# This test verifies that unresponsive users are skipped
+# 1. User A joins queue
+# 2. Simulate User A freezing (don't respond to ping)
+#    - Can be simulated by commenting out pong handler temporarily
+# 3. User B joins queue and tries to match with A
+# 4. Should see "Pinging partner..." then "did not respond to ping within 2s"
+# 5. User A should be removed from queue
+# 6. User B should remain in queue
+```
+
 ### Test 4: Match Rollback
 ```bash
 # This test requires simulating a match notification failure
@@ -83,6 +95,17 @@ curl -X POST http://localhost:4000/test/join \
 - [ ] User C joins learner queue
 - [ ] User C should match with User A (skip User B)
 - [ ] No users stuck in limbo
+
+### ✅ Scenario 4b: Partner Unresponsive (Ping Timeout)
+- [ ] User A joins learner queue
+- [ ] User B joins fluent queue
+- [ ] User B's app freezes (doesn't respond to ping)
+- [ ] Log shows "Pinging partner B..."
+- [ ] Log shows "did not respond to ping within 2s"
+- [ ] User B removed from queue
+- [ ] User A remains in queue
+- [ ] User C joins fluent queue
+- [ ] User A matches with User C successfully
 
 ### ✅ Scenario 5: Rapid Reconnections
 - [ ] User connects
@@ -132,12 +155,13 @@ redis-cli --scan --pattern "match:*"
 
 ## Expected Log Output
 
-### Successful Match
+### Successful Match (With Ping Validation)
 ```
 ✓ Client connected: abc123
 User Alice (user1) joined learner queue for es
 ✓ Client connected: def456
-✓ Valid match found! Bob (fluent) ↔ Alice (learner)
+🏓 Pinging partner Alice to verify responsiveness...
+✓ Valid and responsive match found! Bob (fluent) ↔ Alice (learner)
 ✓ Match completed: Bob ↔ Alice (Lesson: lesson123)
 ```
 
@@ -151,7 +175,16 @@ User Alice (user1) joined learner queue for es
 ### Socket Validation Skip
 ```
 ⚠️ Partner Alice has no active socket. Skipping and trying next in queue (attempt 1/5)
-✓ Valid match found! Bob (fluent) ↔ Charlie (learner)
+🏓 Pinging partner Bob to verify responsiveness...
+✓ Valid and responsive match found! Charlie (learner) ↔ Bob (fluent)
+```
+
+### Ping Validation Timeout
+```
+🏓 Pinging partner Alice to verify responsiveness...
+⚠️ Partner Alice did not respond to ping within 2s. Skipping and trying next in queue (attempt 1/5)
+🏓 Pinging partner Bob to verify responsiveness...
+✓ Valid and responsive match found! Charlie (learner) ↔ Bob (fluent)
 ```
 
 ### Match Rollback
@@ -226,6 +259,8 @@ All fixes are working correctly if:
 - ✅ Reconnections within 10s preserve queue position
 - ✅ Failed matches automatically rollback
 - ✅ Offline partners are skipped during matching
+- ✅ **Unresponsive partners are skipped during matching (ping timeout)**
+- ✅ **Only responsive users are matched (ping-pong validation)**
 - ✅ No stale socket ID errors
 - ✅ No memory leaks from timers
 - ✅ All matches complete successfully or rollback cleanly

@@ -1,6 +1,7 @@
 import { redisClient } from '../config/redis.js';
 import { queueService } from './queue.service.js';
 import { socketTrackingService } from './socket-tracking.service.js';
+import type { Server } from 'socket.io';
 import type { UserData, PartnerData, MatchData } from '../types/index.js';
 
 export class MatchingService {
@@ -11,9 +12,9 @@ export class MatchingService {
   /**
    * Attempt to find a match for the user with atomic operations
    * Returns the matched partner if found, null otherwise
-   * Validates socket connections and retries if partner is offline
+   * Validates socket connections and pings partner to ensure they're responsive
    */
-  async findMatch(userData: UserData, maxRetries: number = 5): Promise<UserData | null> {
+  async findMatch(userData: UserData, io: Server, maxRetries: number = 5): Promise<UserData | null> {
     const oppositeRole = userData.role === 'learner' ? 'fluent' : 'learner';
     
     // Try up to maxRetries times to find a valid match
@@ -35,8 +36,19 @@ export class MatchingService {
         continue;
       }
       
-      // Match is valid!
-      console.log(`✓ Valid match found! ${userData.username} (${userData.role}) ↔ ${match.username} (${match.role})`);
+      // CRITICAL: Ping the partner to verify they're actually responsive
+      console.log(`🏓 Pinging partner ${match.username} to verify responsiveness...`);
+      const isResponsive = await socketTrackingService.pingUser(io, partnerSocketId, 2000);
+      
+      if (!isResponsive) {
+        console.log(`⚠️ Partner ${match.username} did not respond to ping within 2s. Skipping and trying next in queue (attempt ${attempt + 1}/${maxRetries})`);
+        // Partner is unresponsive, remove them from active users and skip to next
+        await queueService.removeUserFromAllQueues(match.id);
+        continue;
+      }
+      
+      // Match is valid and responsive!
+      console.log(`✓ Valid and responsive match found! ${userData.username} (${userData.role}) ↔ ${match.username} (${match.role})`);
       
       // Attach the validated socket ID to the match
       match.socketId = partnerSocketId;
