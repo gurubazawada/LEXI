@@ -29,6 +29,22 @@ This document summarizes the critical fixes implemented to resolve queue vulnera
 **Files Modified**:
 - `backend/src/services/matching.service.ts` - Added socket validation with retry loop
 
+### 2b. ✅ Ping-Based Responsiveness Validation
+**Problem**: Even with socket validation, users could be matched with partners who have frozen apps, network issues, or are otherwise unresponsive.
+
+**Solution**:
+- Implemented ping-pong validation system with 2-second timeout
+- After validating socket exists, actively ping the partner and wait for pong response
+- If no response within 2 seconds, remove partner from queue and try next user
+- Only match with partners who prove they're responsive
+- Frontend automatically responds to ping requests
+
+**Files Modified**:
+- `backend/src/services/socket-tracking.service.ts` - Added `pingUser()` method
+- `backend/src/services/matching.service.ts` - Integrated ping validation in matching flow
+- `backend/src/socket/handlers.ts` - Added pong event handler
+- `my-first-mini-app/src/hooks/useSocket.ts` - Added ping response handler
+
 ### 3. ✅ Match Failure Rollback
 **Problem**: If match notification failed, both users were stuck in limbo - removed from queue but not matched.
 
@@ -106,9 +122,12 @@ This document summarizes the critical fixes implemented to resolve queue vulnera
    ├─ For each popped user:
    │  ├─ Look up their current socketId from SocketTrackingService
    │  ├─ Validate socket exists and is connected
-   │  ├─ If invalid: skip to next user
-   │  └─ If valid: proceed with match
-   └─ Return validated match or null
+   │  ├─ If socket invalid: skip to next user
+   │  ├─ Send ping to partner's socket
+   │  ├─ Wait up to 2 seconds for pong response
+   │  ├─ If no pong: remove from queue, skip to next user
+   │  └─ If pong received: proceed with match ✅
+   └─ Return validated and responsive match or null
 
 3. Notifying match (with rollback)
    ├─ Double-check partner socket exists
@@ -191,7 +210,9 @@ This document summarizes the critical fixes implemented to resolve queue vulnera
 ```
 ✓ Reconnection detected for user {userId} - grace period cancelled
 ⚠️ Partner {username} has no active socket. Skipping and trying next in queue
-✓ Valid match found! {user1} ↔ {user2}
+🏓 Pinging partner {username} to verify responsiveness...
+⚠️ Partner {username} did not respond to ping within 2s. Skipping and trying next in queue
+✓ Valid and responsive match found! {user1} ↔ {user2}
 ⚠️ Partner socket {socketId} not found after match! Rolling back...
 🔄 Rolling back failed match: {user1} ↔ {user2}
 ⏳ Client disconnected: {socketId} (User: {userId}) - starting 10s grace period
@@ -236,7 +257,8 @@ These fixes address all critical vulnerabilities in the queue system:
 - ✅ Stale socket IDs no longer cause match failures
 - ✅ Failed matches automatically rollback
 - ✅ Socket validation prevents matching with offline users
+- ✅ **Ping validation ensures only responsive users are matched**
 - ✅ Reconnections are handled gracefully
 
-The queue system is now robust, reliable, and production-ready.
+The queue system is now robust, reliable, and production-ready. Users will **never** be matched with someone who is offline or unresponsive.
 

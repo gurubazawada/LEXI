@@ -68,6 +68,12 @@ export function useSocket() {
       setIsConnecting(false);
     });
 
+    // Handle ping requests for responsiveness validation
+    socket.on('ping', () => {
+      // Immediately respond with pong to prove we're responsive
+      socket.emit('pong');
+    });
+
     // Connect the socket
     setIsConnecting(true);
     socket.connect();
