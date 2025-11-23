@@ -166,17 +166,98 @@ function getBoilerplateText(): string {
   return `\n\n${boilerplate.tip}\n${boilerplate.call}\n${boilerplate.sessionEnds} ${formattedTime}`;
 }
 
-// Fallback messages in each language
-const fallbackMessages: Record<string, string> = {
-  en: "Let's start practicing!",
-  es: "¡Empecemos a practicar!",
-  fr: "Commençons à pratiquer !",
-  de: "Lass uns üben!",
-  jp: "練習を始めましょう！",
-  pt: "Vamos começar a praticar!",
-  it: "Iniziamo a praticare!",
-  zh: "让我们开始练习吧！",
+// Fallback conversation starters in each language (used if prompt fetch fails)
+const fallbackConversationStarters: Record<string, string[]> = {
+  en: [
+    "What's your favorite food?",
+    "What do you like to do for fun?",
+    "Tell me about yourself.",
+    "What's something interesting about you?",
+    "What's your favorite hobby?",
+    "Where are you from?",
+    "What's your favorite movie?",
+    "What do you do in your free time?",
+  ],
+  es: [
+    "¿Cuál es tu comida favorita?",
+    "¿Qué te gusta hacer para divertirte?",
+    "Cuéntame sobre ti.",
+    "¿Qué es algo interesante sobre ti?",
+    "¿Cuál es tu pasatiempo favorito?",
+    "¿De dónde eres?",
+    "¿Cuál es tu película favorita?",
+    "¿Qué haces en tu tiempo libre?",
+  ],
+  fr: [
+    "Quel est ton plat préféré?",
+    "Qu'aimes-tu faire pour t'amuser?",
+    "Parle-moi de toi.",
+    "Qu'est-ce qui est intéressant chez toi?",
+    "Quel est ton passe-temps préféré?",
+    "D'où viens-tu?",
+    "Quel est ton film préféré?",
+    "Que fais-tu pendant ton temps libre?",
+  ],
+  de: [
+    "Was ist dein Lieblingsessen?",
+    "Was machst du gerne zum Spaß?",
+    "Erzähl mir von dir.",
+    "Was ist etwas Interessantes über dich?",
+    "Was ist dein Lieblingshobby?",
+    "Woher kommst du?",
+    "Was ist dein Lieblingsfilm?",
+    "Was machst du in deiner Freizeit?",
+  ],
+  jp: [
+    "好きな食べ物は何ですか？",
+    "趣味は何ですか？",
+    "自己紹介をお願いします。",
+    "あなたについて面白いことを教えてください。",
+    "好きな趣味は何ですか？",
+    "出身はどこですか？",
+    "好きな映画は何ですか？",
+    "暇な時間に何をしますか？",
+  ],
+  pt: [
+    "Qual é a sua comida favorita?",
+    "O que você gosta de fazer para se divertir?",
+    "Conte-me sobre você.",
+    "O que é algo interessante sobre você?",
+    "Qual é o seu hobby favorito?",
+    "De onde você é?",
+    "Qual é o seu filme favorito?",
+    "O que você faz no seu tempo livre?",
+  ],
+  it: [
+    "Qual è il tuo cibo preferito?",
+    "Cosa ti piace fare per divertirti?",
+    "Parlami di te.",
+    "Cosa c'è di interessante su di te?",
+    "Qual è il tuo hobby preferito?",
+    "Da dove vieni?",
+    "Qual è il tuo film preferito?",
+    "Cosa fai nel tuo tempo libero?",
+  ],
+  zh: [
+    "你最喜欢的食物是什么？",
+    "你喜欢做什么来娱乐？",
+    "告诉我一些关于你的事。",
+    "关于你，有什么有趣的事？",
+    "你最喜欢的爱好是什么？",
+    "你来自哪里？",
+    "你最喜欢的电影是什么？",
+    "你在空闲时间做什么？",
+  ],
 };
+
+/**
+ * Get a random fallback conversation starter in the specified language
+ */
+function getRandomFallbackStarter(language: string): string {
+  const starters = fallbackConversationStarters[language] || fallbackConversationStarters['en'];
+  const randomIndex = Math.floor(Math.random() * starters.length);
+  return starters[randomIndex];
+}
 
 type QueueState = 'idle' | 'loading' | 'queued' | 'matched';
 type Partner = {
@@ -331,14 +412,15 @@ export default function MatchPage() {
           return;
         }
 
-        // Use prompt if available, otherwise use language-specific fallback message
-        // The prompt from backend is already in the correct language
-        const promptText = prompt || fallbackMessages[language] || fallbackMessages['en'];
+        // Use conversation starter prompt from backend if available, otherwise use random fallback conversation starter
+        // The prompt from backend is already a conversation starter in the correct language
+        const conversationStarter = prompt || getRandomFallbackStarter(language);
         // Get a random "we matched" message in the same language
         const matchedText = getRandomMatchedMessage(language);
         // Get boilerplate text (tipping, calling, session end time) - always in English
         const boilerplate = getBoilerplateText();
-        const message = `${promptText} ${matchedText}${boilerplate}`;
+        // Message structure: [Conversation Starter] + [We Matched] + [Boilerplate]
+        const message = `${conversationStarter} ${matchedText}${boilerplate}`;
 
         const payload: ChatPayload = {
           message,
