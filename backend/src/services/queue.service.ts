@@ -6,31 +6,41 @@ export class QueueService {
     return `queue:${role}:${language}`;
   }
 
+  private getUserQueueKey(userId: string): string {
+    return `user:queue:${userId}`;
+  }
+
   /**
    * Add user to the appropriate queue
-   * Note: socketId is NOT stored in queue data - it's looked up dynamically
+   * Enforces single-queue membership by removing from any previous queue first
    */
   async joinQueue(userData: UserData): Promise<void> {
+    // 1. Check if user is already in a queue and remove them if so
+    await this.removeUserFromAnyQueue(userData.id);
+
     const queueKey = this.getQueueKey(userData.role, userData.language);
+    const userQueueKey = this.getUserQueueKey(userData.id);
     
     // Remove socketId before storing to prevent stale socket IDs
     const { socketId, ...userDataWithoutSocket } = userData;
     const userJson = JSON.stringify(userDataWithoutSocket);
     
-    // Add to queue (left push - FIFO with right pop)
+    // 2. Add to queue (left push - FIFO with right pop)
     await redisClient.lPush(queueKey, userJson);
     
-    // Track active user
+    // 3. Track active user and their specific queue location
     await redisClient.sAdd('active_users', userData.id);
+    await redisClient.set(userQueueKey, `${userData.role}:${userData.language}`);
     
     console.log(`User ${userData.username} (${userData.id}) joined ${userData.role} queue for ${userData.language}`);
   }
 
   /**
-   * Remove user from queue
+   * Remove user from specific queue
    */
   async leaveQueue(userId: string, role: 'learner' | 'fluent', language: string): Promise<void> {
     const queueKey = this.getQueueKey(role, language);
+    const userQueueKey = this.getUserQueueKey(userId);
     
     // Get all items in queue
     const queueItems = await redisClient.lRange(queueKey, 0, -1);
@@ -45,34 +55,39 @@ export class QueueService {
       }
     }
     
-    // Remove from active users
+    // Remove tracking
     await redisClient.sRem('active_users', userId);
+    await redisClient.del(userQueueKey);
   }
 
   /**
-   * Remove user from all queues (when they disconnect)
+   * Remove user from ANY queue they might be in
+   * Uses direct lookup for O(1) performance instead of scanning all queues
    */
-  async removeUserFromAllQueues(userId: string): Promise<void> {
-    const languages = ['es', 'en', 'fr', 'jp', 'de', 'pt', 'it', 'zh'];
-    const roles: ('learner' | 'fluent')[] = ['learner', 'fluent'];
+  async removeUserFromAnyQueue(userId: string): Promise<void> {
+    const userQueueKey = this.getUserQueueKey(userId);
+    const queueInfo = await redisClient.get(userQueueKey);
     
-    for (const role of roles) {
-      for (const language of languages) {
-        const queueKey = this.getQueueKey(role, language);
-        const queueItems = await redisClient.lRange(queueKey, 0, -1);
-        
-        for (const item of queueItems) {
-          const user = JSON.parse(item) as UserData;
-          if (user.id === userId) {
-            await redisClient.lRem(queueKey, 1, item);
-            console.log(`Removed disconnected user ${userId} from ${role}:${language} queue`);
-          }
-        }
+    if (queueInfo) {
+      const [role, language] = queueInfo.split(':') as ['learner' | 'fluent', string];
+      if (role && language) {
+        console.log(`Removing user ${userId} from previous queue: ${role}:${language}`);
+        await this.leaveQueue(userId, role, language);
+        return;
       }
     }
     
-    // Remove from active users
-    await redisClient.sRem('active_users', userId);
+    // Fallback: Check active_users just in case, though the mapping should be the source of truth
+    const isActive = await redisClient.sIsMember('active_users', userId);
+    if (isActive) {
+        // If in active_users but no mapping, clean up active_users
+        await redisClient.sRem('active_users', userId);
+    }
+  }
+
+  // Deprecated alias for compatibility, but uses new efficient logic
+  async removeUserFromAllQueues(userId: string): Promise<void> {
+    await this.removeUserFromAnyQueue(userId);
   }
 
   /**
@@ -98,8 +113,9 @@ export class QueueService {
     
     const userData = JSON.parse(userJson) as UserData;
     
-    // Remove from active users since they're no longer in queue (they're matched)
+    // Remove from active users and tracking since they're no longer in queue (they're matched)
     await redisClient.sRem('active_users', userData.id);
+    await redisClient.del(this.getUserQueueKey(userData.id));
     
     return userData;
   }

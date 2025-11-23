@@ -81,19 +81,40 @@ export function setupSocketHandlers(io: Server) {
           console.log(`✓ User ${finalUserId} reconnected - keeping queue position`);
         }
 
-        // Check if user is already in queue (shouldn't happen, but handle it)
-        const wasInQueue = await queueService.isUserInQueue(finalUserId);
+        // Note: queueService.joinQueue automatically removes user from any previous queue
+        // so we don't need manual cleanup here anymore.
         
         // Try to find a match immediately (with socket validation, ping validation, and retries)
         const match = await matchingService.findMatch(userData, io);
 
         if (match) {
-          // Match found! Remove current user from queue if they were in it
-          if (wasInQueue) {
-            await queueService.leaveQueue(finalUserId, role, language);
-          }
-          
+          // Match found! 
           // The matched user is already removed from queue and active_users by getNextFromQueue
+          
+          // For the current user (finalUserId):
+          // If they were just added to queue by matchingService.rollbackMatch (in a failed match scenario),
+          // they would be in the queue. But here, we haven't added them to queue yet.
+          // We only add to queue if NO match is found (in the else block).
+          
+          // However, if findMatch fails, we add them to queue.
+          // The logic flow is: 
+          // 1. User connects.
+          // 2. findMatch checks OPPOSITE queue.
+          // 3. If match, user is paired. User is NEVER added to queue.
+          // 4. If no match, user is added to queue.
+          
+          // So we don't need to "leaveQueue" for the current user because they aren't in it yet!
+          // UNLESS they were in a queue from a previous session (handled by removeUserFromAnyQueue inside joinQueue if we called it).
+          
+          // Wait, we only call joinQueue in the 'else' block.
+          // So if a user WAS in a queue (e.g. waiting for Spanish), and now joins for French:
+          // 1. findMatch looks for French partner.
+          // 2. If found -> Match! 
+          // BUT User is still in Spanish queue in Redis!
+          // We MUST ensure they are removed from Spanish queue even if they match immediately in French.
+          
+          // FIX: Explicitly ensure user is removed from any previous queue
+          await queueService.removeUserFromAnyQueue(finalUserId);
           
           // CRITICAL: Validate that partner socket still exists (double-check)
           const partnerSocket = io.sockets.sockets.get(match.socketId!);
@@ -236,8 +257,8 @@ export function setupSocketHandlers(io: Server) {
               const isInQueue = await queueService.isUserInQueue(userId);
               
               if (isInQueue) {
-                // Remove user from all queues
-                await queueService.removeUserFromAllQueues(userId);
+                // Remove user from any queue they are in
+                await queueService.removeUserFromAnyQueue(userId);
                 console.log(`✗ Grace period expired: Removed ${userId} from queue`);
               }
               
