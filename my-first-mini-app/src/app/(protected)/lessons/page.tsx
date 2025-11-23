@@ -48,24 +48,24 @@ export default function LessonsPage() {
   const [hasReviewed, setHasReviewed] = useState<{ [lessonId: string]: boolean }>({});
 
   useEffect(() => {
-    if (session?.user?.id) {
+    if (session?.user?.walletAddress) {
       loadLessons();
     }
   }, [session]);
 
   const loadLessons = async () => {
-    if (!session?.user?.id) return;
+    if (!session?.user?.walletAddress) return;
 
     try {
       setLoading(true);
-      const data = await fetchLessons(session.user.id);
+      const data = await fetchLessons(session.user.walletAddress);
       setLessons(data.lessons);
 
       // Load review data for each lesson
       const reviewPromises = data.lessons.map(async (lesson) => {
         try {
           const reviewData = await fetchReviewForLesson(lesson.id);
-          const checkData = await checkReviewExists(lesson.id, session.user.id!);
+          const checkData = await checkReviewExists(lesson.id, session.user.walletAddress!);
           return {
             lessonId: lesson.id,
             review: reviewData.review,
@@ -109,7 +109,7 @@ export default function LessonsPage() {
   };
 
   const getPartnerInfo = (lesson: Lesson) => {
-    const isLearner = session?.user?.id === lesson.learnerId;
+    const isLearner = session?.user?.walletAddress === lesson.learnerId;
     return {
       name: isLearner ? lesson.fluentUsername : lesson.learnerUsername,
       role: isLearner ? 'Fluent Speaker' : 'Learner',
@@ -177,11 +177,11 @@ export default function LessonsPage() {
                   ← Back to Conversations
                 </Button>
 
-                {session?.user?.id === selectedLesson.learnerId && 
+                {session?.user?.walletAddress === selectedLesson.learnerId && 
                  !hasReviewed[selectedLesson.id] && (
                   <Review
                     lesson={selectedLesson}
-                    learnerId={session.user.id}
+                    learnerId={session.user.walletAddress}
                     onReviewSubmitted={handleReviewSubmitted}
                   />
                 )}
@@ -238,12 +238,12 @@ export default function LessonsPage() {
                     </div>
                     <div className="text-sm text-gray-600">
                       <strong>Started:</strong>{' '}
-                      {formatDistanceToNow(new Date(selectedLesson.startedAt), { addSuffix: true })}
+                      {formatDistanceToNow(new Date(selectedLesson.startedAt))}
                     </div>
                     {selectedLesson.endedAt && (
                       <div className="text-sm text-gray-600">
                         <strong>Ended:</strong>{' '}
-                        {formatDistanceToNow(new Date(selectedLesson.endedAt), { addSuffix: true })}
+                        {formatDistanceToNow(new Date(selectedLesson.endedAt))}
                       </div>
                     )}
                   </CardContent>
@@ -253,7 +253,7 @@ export default function LessonsPage() {
               lessons.map((lesson) => {
                 const partner = getPartnerInfo(lesson);
                 const review = reviewData[lesson.id];
-                const canReview = session?.user?.id === lesson.learnerId && !hasReviewed[lesson.id];
+                const canReview = session?.user?.walletAddress === lesson.learnerId && !hasReviewed[lesson.id];
 
                 return (
                   <Card
@@ -285,7 +285,7 @@ export default function LessonsPage() {
                         )}
                       </div>
                       <p className="text-xs text-gray-500">
-                        {formatDistanceToNow(new Date(lesson.startedAt), { addSuffix: true })}
+                        {formatDistanceToNow(new Date(lesson.startedAt))}
                       </p>
                       {canReview && (
                         <div className="mt-3">

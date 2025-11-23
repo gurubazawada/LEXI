@@ -16,6 +16,7 @@ import { useRouter } from 'next/navigation';
 import { useSocket } from '@/hooks/useSocket';
 import type { MatchedPayload, QueuedPayload, ErrorPayload } from '@/hooks/useSocket';
 import type { UserStats } from '@/types/stats';
+import { Navigation } from '@/components/Navigation';
 
 const languages = [
   { value: "es", label: "Spanish" },
@@ -261,7 +262,7 @@ export default function MatchPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white dark:bg-black flex flex-col p-6">
+    <div className="min-h-screen bg-white dark:bg-black flex flex-col p-6 pb-24">
       <div className="w-full max-w-md mx-auto space-y-6">
         
         {/* Header - Moved to top */}
@@ -477,6 +478,11 @@ export default function MatchPage() {
         <div className="text-center text-xs text-gray-500 dark:text-gray-600">
           <p>Powered by Worldcoin</p>
         </div>
+      </div>
+      
+      {/* Navigation */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-black border-t border-gray-200 dark:border-gray-800 px-0 pb-[35px] z-50">
+        <Navigation />
       </div>
     </div>
   );
