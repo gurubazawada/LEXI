@@ -33,10 +33,14 @@ export const AuthButton = () => {
         throw new Error('Configuration error');
       }
 
+      console.log('Initiating World ID Verification with:', { appId, action });
+
       const verifyResult = await MiniKit.commandsAsync.verify({
         app_id: appId,
         action: action,
       });
+
+      console.log('Verification Result:', verifyResult);
 
       // Check if verification was successful
       if (!verifyResult) {
@@ -78,7 +82,7 @@ export const AuthButton = () => {
         disabled={isPending}
         variant="primary"
       >
-        {isPending ? 'Connecting...' : 'Connect Wallet'}
+        {isPending ? 'Verifying Humanity...' : 'Verify Humanity & Enter'}
       </Button>
       {error && (
         <p className="text-sm text-red-500 text-center">{error}</p>
