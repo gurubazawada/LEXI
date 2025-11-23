@@ -116,18 +116,35 @@ const promptTemplates: Record<LanguageCode, TemplateBuilder[]> = {
 
 const PROMPTS_PER_LANGUAGE = 100;
 
+/**
+ * Shuffle array using Fisher-Yates algorithm
+ */
+function shuffleArray<T>(array: T[]): T[] {
+  const shuffled = [...array];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+}
+
 function buildPrompts(language: LanguageCode): string[] {
   const topics = promptTopics[language];
   const templates = promptTemplates[language];
   const prompts: string[] = [];
 
+  // Generate all combinations
   for (const topic of topics) {
     for (const template of templates) {
       prompts.push(template(topic));
     }
   }
 
-  return prompts.slice(0, PROMPTS_PER_LANGUAGE);
+  // Shuffle to avoid uniform pattern
+  const shuffled = shuffleArray(prompts);
+  
+  // Return first PROMPTS_PER_LANGUAGE prompts (or all if less)
+  return shuffled.slice(0, PROMPTS_PER_LANGUAGE);
 }
 
 export const promptSeeds: Record<LanguageCode, string[]> = Object.fromEntries(
