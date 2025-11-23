@@ -214,7 +214,20 @@ export default function MatchPage() {
   const chatSubscriptionRef = useRef<(() => void) | void | null>(null);
   const { isInstalled } = useMiniKit();
   const { data: session, status: sessionStatus } = useSession();
-  const { isConnected, isConnecting, joinQueue, leaveQueue, onMatched, onQueued, onError, offMatched, offQueued, offError } = useSocket();
+  const { 
+    isConnected, 
+    isConnecting, 
+    joinQueue, 
+    leaveQueue, 
+    onMatched, 
+    onMatchCancelled,
+    onQueued, 
+    onError, 
+    offMatched, 
+    offMatchCancelled,
+    offQueued, 
+    offError 
+  } = useSocket();
 
   // Redirect to home if not authenticated
   useEffect(() => {
@@ -409,21 +422,32 @@ export default function MatchPage() {
       setStatus('queued');
     };
 
+    const handleMatchCancelled = () => {
+      console.log('Match cancelled by server');
+      setStatus('idle');
+      setPartner(null);
+      setChatSent(false);
+      setChatError(null);
+      setPrompt(null);
+    };
+
     const handleError = (data: ErrorPayload) => {
       console.error('Socket error:', data.message);
       setStatus('idle');
     };
 
     onMatched(handleMatched);
+    onMatchCancelled(handleMatchCancelled);
     onQueued(handleQueued);
     onError(handleError);
 
     return () => {
       offMatched(handleMatched);
+      offMatchCancelled(handleMatchCancelled);
       offQueued(handleQueued);
       offError(handleError);
     };
-  }, [onMatched, onQueued, onError, offMatched, offQueued, offError]);
+  }, [onMatched, onMatchCancelled, onQueued, onError, offMatched, offMatchCancelled, offQueued, offError]);
 
   const chatUrl = buildChatUrl(partner);
 

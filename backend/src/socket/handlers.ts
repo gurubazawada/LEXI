@@ -157,8 +157,8 @@ export function setupSocketHandlers(io: Server) {
           
           // Wrap match notification in try-catch for rollback on failure
           try {
-            // Match found! Notify both users
-            socket.emit('matched', {
+            // Prepare payloads
+            const userPayload = {
               partner: {
                 id: match.id,
                 username: match.username,
@@ -168,14 +168,9 @@ export function setupSocketHandlers(io: Server) {
               },
               userId: finalUserId,
               lessonId,
-            });
+            };
 
-            // Store lesson ID in partner socket data
-            partnerSocket.data.lessonId = lessonId;
-            partnerSocket.data.partnerId = finalUserId;
-
-            // Notify the matched partner
-            io.to(match.socketId!).emit('matched', {
+            const partnerPayload = {
               partner: {
                 id: finalUserId,
                 username: userData.username,
@@ -185,19 +180,38 @@ export function setupSocketHandlers(io: Server) {
               },
               userId: match.id,
               lessonId,
-            });
+            };
 
-            console.log(`✓ Match completed: ${userData.username} ↔ ${match.username}${lessonId ? ` (Lesson: ${lessonId})` : ''}`);
-          } catch (notificationError) {
-            console.error('⚠️ Failed to notify users of match. Rolling back...', notificationError);
+            // Store lesson ID in partner socket data
+            partnerSocket.data.lessonId = lessonId;
+            partnerSocket.data.partnerId = finalUserId;
+
+            // Emit 'matched' event to both users with a 5-second timeout and wait for acknowledgment
+            // This ensures both users actually received the event before we consider it a success
+            console.log(`⏳ Sending match notifications with ACK required...`);
             
-            // Rollback the match
+            await Promise.all([
+              socket.timeout(5000).emitWithAck('matched', userPayload),
+              partnerSocket.timeout(5000).emitWithAck('matched', partnerPayload)
+            ]);
+
+            console.log(`✓ Match completed & confirmed: ${userData.username} ↔ ${match.username}${lessonId ? ` (Lesson: ${lessonId})` : ''}`);
+          } catch (notificationError) {
+            console.error('⚠️ Match delivery failed (ACK timeout or error). Rolling back...', notificationError);
+            
+            // 1. Rollback the match in Redis
             await matchingService.rollbackMatch(userData, match);
             
-            // Notify both users of the error
-            socket.emit('error', { message: 'Match failed. Please try again.' });
+            // 2. Notify both users that match is cancelled (in case one received it)
+            socket.emit('match_cancelled');
             if (partnerSocket) {
-              partnerSocket.emit('error', { message: 'Match failed. Please try again.' });
+              partnerSocket.emit('match_cancelled');
+            }
+            
+            // 3. Send error message
+            socket.emit('error', { message: 'Match failed (network timeout). Please try again.' });
+            if (partnerSocket) {
+              partnerSocket.emit('error', { message: 'Match failed (network timeout). Please try again.' });
             }
           }
         } else {
