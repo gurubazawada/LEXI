@@ -50,11 +50,26 @@ export function Review({ lesson, learnerId, onReviewSubmitted }: ReviewProps) {
 
   if (success) {
     return (
-      <Card>
+      <Card className="border-2 border-green-200 bg-green-50/50">
         <CardContent className="pt-6">
           <div className="text-center">
-            <p className="text-green-600 font-semibold">Thank you for your review!</p>
-            <p className="text-sm text-gray-600 mt-2">Your feedback helps improve the platform.</p>
+            <div className="flex justify-center mb-3">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <Star
+                  key={star}
+                  className={cn(
+                    'w-6 h-6',
+                    star <= rating
+                      ? 'fill-yellow-400 text-yellow-400'
+                      : 'fill-gray-200 text-gray-200'
+                  )}
+                />
+              ))}
+            </div>
+            <p className="text-green-600 font-semibold text-lg">Thank you for your review!</p>
+            <p className="text-sm text-gray-600 mt-2">
+              Your rating has been submitted and will update the leaderboard.
+            </p>
           </div>
         </CardContent>
       </Card>
@@ -62,18 +77,21 @@ export function Review({ lesson, learnerId, onReviewSubmitted }: ReviewProps) {
   }
 
   return (
-    <Card>
+    <Card className="border-2 border-yellow-200 bg-yellow-50/50">
       <CardHeader>
-        <CardTitle>Rate Your Conversation</CardTitle>
-        <p className="text-sm text-gray-600">
-          How was your conversation with {lesson.fluentUsername}?
+        <CardTitle>Rate Your Fluent Speaker</CardTitle>
+        <p className="text-sm text-gray-700 font-medium">
+          How was your conversation with <span className="font-semibold">{lesson.fluentUsername}</span>?
+        </p>
+        <p className="text-xs text-gray-500 mt-1">
+          Your rating helps improve the leaderboard and helps others find great language partners
         </p>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <Label>Rating</Label>
-            <div className="flex gap-2 mt-2">
+            <Label className="text-base font-semibold">Rating (1-5 Stars)</Label>
+            <div className="flex gap-3 mt-3 justify-center">
               {[1, 2, 3, 4, 5].map((star) => (
                 <button
                   key={star}
@@ -81,27 +99,33 @@ export function Review({ lesson, learnerId, onReviewSubmitted }: ReviewProps) {
                   onClick={() => setRating(star)}
                   onMouseEnter={() => setHoveredRating(star)}
                   onMouseLeave={() => setHoveredRating(0)}
-                  className="focus:outline-none"
+                  className={cn(
+                    "focus:outline-none transition-transform hover:scale-110 active:scale-95",
+                    (hoveredRating >= star || rating >= star) && "scale-110"
+                  )}
+                  aria-label={`Rate ${star} star${star !== 1 ? 's' : ''}`}
                 >
                   <Star
                     className={cn(
-                      'w-8 h-8 transition-colors',
+                      'w-10 h-10 transition-all duration-200',
                       (hoveredRating >= star || rating >= star)
-                        ? 'fill-yellow-400 text-yellow-400'
-                        : 'fill-gray-200 text-gray-200'
+                        ? 'fill-yellow-400 text-yellow-400 drop-shadow-sm'
+                        : 'fill-gray-300 text-gray-300'
                     )}
                   />
                 </button>
               ))}
             </div>
             {rating > 0 && (
-              <p className="text-sm text-gray-600 mt-2">
-                {rating === 1 && 'Poor'}
-                {rating === 2 && 'Fair'}
-                {rating === 3 && 'Good'}
-                {rating === 4 && 'Very Good'}
-                {rating === 5 && 'Excellent'}
-              </p>
+              <div className="mt-3 text-center">
+                <p className="text-base font-semibold text-gray-800">
+                  {rating === 1 && '⭐ Poor'}
+                  {rating === 2 && '⭐⭐ Fair'}
+                  {rating === 3 && '⭐⭐⭐ Good'}
+                  {rating === 4 && '⭐⭐⭐⭐ Very Good'}
+                  {rating === 5 && '⭐⭐⭐⭐⭐ Excellent'}
+                </p>
+              </div>
             )}
           </div>
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { TabItem, Tabs } from '@worldcoin/mini-apps-ui-kit-react';
-import { Book, ChatBubble, Trophy } from 'iconoir-react';
+import { Clock, ChatBubble, Trophy } from 'iconoir-react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
@@ -41,7 +41,7 @@ export const Navigation = () => {
 
   return (
     <Tabs value={value} onValueChange={handleValueChange}>
-      <TabItem value="lessons" icon={<Book />} label="Lessons" />
+      <TabItem value="lessons" icon={<Clock />} label="History" />
       <TabItem value="match" icon={<ChatBubble />} label="Match" />
       <TabItem value="leaderboard" icon={<Trophy />} label="Leaderboard" />
     </Tabs>

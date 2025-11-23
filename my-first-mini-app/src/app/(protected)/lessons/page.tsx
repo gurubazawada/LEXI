@@ -127,7 +127,7 @@ export default function LessonsPage() {
     return (
       <>
         <Page.Header className="p-0">
-          <TopBar title="Past Conversations" />
+          <TopBar title="History" />
         </Page.Header>
         <Page.Main className="flex items-center justify-center">
           <p className="text-gray-600">Loading lessons...</p>
@@ -140,7 +140,7 @@ export default function LessonsPage() {
     return (
       <>
         <Page.Header className="p-0">
-          <TopBar title="Past Conversations" />
+          <TopBar title="History" />
         </Page.Header>
         <Page.Main className="flex items-center justify-center">
           <p className="text-red-600">{error}</p>
@@ -152,16 +152,16 @@ export default function LessonsPage() {
   return (
     <>
       <Page.Header className="p-0">
-        <TopBar title="Past Conversations" />
+        <TopBar title="History" />
       </Page.Header>
       <Page.Main className="space-y-4 pb-16">
         {lessons.length === 0 ? (
           <Card>
             <CardContent className="pt-6 text-center">
               <MessageCircle className="w-12 h-12 mx-auto text-gray-400 mb-4" />
-              <p className="text-gray-600">No conversations yet</p>
+              <p className="text-gray-600">No lessons yet</p>
               <p className="text-sm text-gray-500 mt-2">
-                Start matching with language partners to see your conversations here
+                Start matching with language partners to see your lesson history here
               </p>
             </CardContent>
           </Card>
@@ -174,7 +174,7 @@ export default function LessonsPage() {
                   onClick={() => setSelectedLesson(null)}
                   className="mb-4"
                 >
-                  ← Back to Conversations
+                  ← Back to History
                 </Button>
 
                 {session?.user?.walletAddress === selectedLesson.learnerId && 
@@ -288,17 +288,21 @@ export default function LessonsPage() {
                         {formatDistanceToNow(new Date(lesson.startedAt))}
                       </p>
                       {canReview && (
-                        <div className="mt-3">
+                        <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                          <p className="text-xs font-semibold text-yellow-800 mb-2">
+                            ⭐ Rate your fluent speaker
+                          </p>
                           <Button
                             size="sm"
                             variant="outline"
+                            className="w-full border-yellow-300 hover:bg-yellow-100"
                             onClick={(e) => {
                               e.stopPropagation();
                               setSelectedLesson(lesson);
                             }}
                           >
-                            <Star className="w-4 h-4 mr-2" />
-                            Rate Conversation
+                            <Star className="w-4 h-4 mr-2 fill-yellow-400 text-yellow-400" />
+                            Rate {partner.name}
                           </Button>
                         </div>
                       )}
