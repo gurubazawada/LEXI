@@ -23,8 +23,8 @@ export default function LeaderboardPage() {
   const loadLeaderboard = async () => {
     try {
       setLoading(true);
-      // Fetch enough entries to show podium (top 3) + standard top 30 list underneath
-      const data = await fetchLeaderboard(33);
+      // Fetch all leaderboard entries (no limit - backend default is 100)
+      const data = await fetchLeaderboard(1000);
       setLeaderboard(data.leaderboard);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load leaderboard');
@@ -102,15 +102,15 @@ export default function LeaderboardPage() {
           <>
             {/* Top 3 Podium - Only show if we have at least 3 entries */}
             {leaderboard.length >= 3 ? (
-              <Card className="bg-gradient-to-br from-yellow-50 via-amber-50 to-yellow-50 border-yellow-200">
+              <Card className="bg-gradient-to-br from-blue-50 via-blue-100 to-blue-50 border-blue-200">
                 <CardHeader>
                   <CardTitle className="flex items-center justify-center gap-2">
-                    <Trophy className="w-6 h-6 text-yellow-600" />
+                    <Trophy className="w-6 h-6 text-blue-600" />
                     <span className="text-xl font-bold">Podium</span>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-sm text-center text-yellow-900 mb-4">
+                  <p className="text-sm text-center text-blue-900 mb-4">
                     Celebrating the top three fluent guides
                   </p>
                   <div className="flex items-end justify-center gap-3 px-2">
@@ -137,7 +137,8 @@ export default function LeaderboardPage() {
                               className="object-contain"
                             />
                           </div>
-                          <Badge className="absolute -top-2 -right-2 bg-gray-500 text-white border-2 border-white shadow-md">
+                          <Badge className="absolute -top-2 -right-2 bg-gray-500 text-white border-2 border-white shadow-md font-bold px-2.5 py-1 text-sm flex items-center gap-1">
+                            <Medal className="w-3.5 h-3.5 fill-gray-200" />
                             #2
                           </Badge>
                         </div>
@@ -171,7 +172,8 @@ export default function LeaderboardPage() {
                               className="object-contain"
                             />
                           </div>
-                          <Badge className="absolute -top-2 -right-2 bg-yellow-600 text-white border-2 border-white shadow-lg font-bold">
+                          <Badge className="absolute -top-2 -right-2 bg-yellow-600 text-white border-2 border-white shadow-lg font-bold px-3 py-1 text-sm flex items-center gap-1">
+                            <Medal className="w-4 h-4 fill-yellow-200" />
                             #1
                           </Badge>
                         </div>
@@ -205,7 +207,8 @@ export default function LeaderboardPage() {
                               className="object-contain"
                             />
                           </div>
-                          <Badge className="absolute -top-2 -right-2 bg-amber-700 text-white border-2 border-white shadow-md">
+                          <Badge className="absolute -top-2 -right-2 bg-amber-700 text-white border-2 border-white shadow-md font-bold px-2.5 py-1 text-sm flex items-center gap-1">
+                            <Medal className="w-3.5 h-3.5 fill-amber-200" />
                             #3
                           </Badge>
                         </div>
@@ -258,12 +261,13 @@ export default function LeaderboardPage() {
               </Card>
             )}
 
-            {/* Rest of Top 30 Leaderboard List (excluding top 3) */}
+            {/* Complete Ranking List (excluding top 3) */}
             {leaderboard.length > 3 && (
               <div className="space-y-2">
-                <h2 className="text-lg font-semibold px-2">Top 30 (Ranks 4 - 33)</h2>
-                <p className="text-sm text-gray-600 px-2">Solid performers right behind the podium.</p>
-                {leaderboard.slice(3, 33).map((entry) => (
+                <h2 className="text-lg font-semibold px-2">Complete Rankings</h2>
+                <p className="text-sm text-gray-600 px-2">All fluent guides ranked by performance.</p>
+                <div className="max-h-[600px] overflow-y-auto space-y-2 pr-1">
+                {leaderboard.slice(3).map((entry) => (
                   <Card
                     key={entry.fluentId}
                     className="transition-shadow hover:shadow-md"
@@ -302,6 +306,7 @@ export default function LeaderboardPage() {
                     </CardContent>
                   </Card>
                 ))}
+                </div>
               </div>
             )}
           </>
