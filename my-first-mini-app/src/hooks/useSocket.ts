@@ -107,7 +107,18 @@ export function useSocket() {
   };
 
   const onMatched = (callback: (data: MatchedPayload) => void) => {
-    socketRef.current?.on('matched', callback);
+    socketRef.current?.on('matched', (data: MatchedPayload, ackCallback?: (response: any) => void) => {
+      // 1. Acknowledge receipt immediately if server requested it
+      if (ackCallback) {
+        ackCallback({ status: 'received' });
+      }
+      // 2. Call the user-provided callback
+      callback(data);
+    });
+  };
+
+  const onMatchCancelled = (callback: () => void) => {
+    socketRef.current?.on('match_cancelled', callback);
   };
 
   const onQueued = (callback: (data: QueuedPayload) => void) => {
@@ -119,7 +130,15 @@ export function useSocket() {
   };
 
   const offMatched = (callback: (data: MatchedPayload) => void) => {
-    socketRef.current?.off('matched', callback);
+    // Note: We need to match the exact function signature for removal,
+    // but since we wrapped it, standard off might not work if we don't store the wrapper.
+    // For now, 'off' will remove all listeners for 'matched' if we don't pass the wrapper.
+    // A simpler way is to just remove all listeners for the event.
+    socketRef.current?.removeAllListeners('matched');
+  };
+
+  const offMatchCancelled = (callback: () => void) => {
+    socketRef.current?.off('match_cancelled', callback);
   };
 
   const offQueued = (callback: (data: QueuedPayload) => void) => {
@@ -137,9 +156,11 @@ export function useSocket() {
     joinQueue,
     leaveQueue,
     onMatched,
+    onMatchCancelled,
     onQueued,
     onError,
     offMatched,
+    offMatchCancelled,
     offQueued,
     offError,
   };
