@@ -2,14 +2,12 @@ import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
 import type { UserStats } from '@/types/stats';
 
+// Force dynamic to ensure we always fetch fresh data
+export const dynamic = 'force-dynamic';
+
 /**
  * GET /api/stats
  * Returns user statistics including total chats, streak, and community rank
- * 
- * TODO: Implement actual stat tracking
- * - Store chat completions in Redis/Database
- * - Track daily logins for streak calculation
- * - Calculate community rank based on activity
  */
 export async function GET() {
   try {
@@ -22,12 +20,34 @@ export async function GET() {
       );
     }
 
-    // TODO: Fetch actual stats from Redis/Database
-    // For now, return placeholder data
+    const userId = session.user.walletAddress;
+    // Use the backend URL from env or default to localhost
+    // Note: In production (Vercel), this needs to point to the actual backend URL
+    const backendUrl = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:4000';
+    
+    let totalChats = 0;
+    let currentStreak = 0;
+    
+    try {
+      // Fetch lessons from backend to count total chats
+      const lessonsResponse = await fetch(`${backendUrl}/api/lessons/${userId}?limit=1000`);
+      if (lessonsResponse.ok) {
+        const data = await lessonsResponse.json();
+        if (data.lessons && Array.isArray(data.lessons)) {
+          totalChats = data.lessons.length;
+        }
+      } else {
+        console.warn('Failed to fetch lessons from backend:', lessonsResponse.status, lessonsResponse.statusText);
+      }
+    } catch (fetchError) {
+      console.error('Error fetching data from backend:', fetchError);
+      // Fallback to 0 if backend is unreachable
+    }
+
     const stats: UserStats = {
-      totalChats: 0,
-      currentStreak: 0,
-      communityRank: '--',
+      totalChats,
+      currentStreak, // Streak logic would go here
+      communityRank: '--', // Rank logic would go here
       lastActiveDate: new Date().toISOString(),
       bestStreak: 0,
     };
