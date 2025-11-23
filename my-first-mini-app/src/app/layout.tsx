@@ -1,5 +1,6 @@
 import { auth } from '@/auth';
 import ClientProviders from '@/providers';
+import { BootupScreen } from '@/components/BootupScreen';
 import type { Metadata } from 'next';
 import './globals.css';
 
@@ -20,7 +21,9 @@ export default async function RootLayout({
   return (
     <html lang="en">
       <body className="font-sans antialiased">
-        <ClientProviders session={session}>{children}</ClientProviders>
+        <BootupScreen>
+          <ClientProviders session={session}>{children}</ClientProviders>
+        </BootupScreen>
       </body>
     </html>
   );

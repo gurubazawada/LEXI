@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from '@worldcoin/mini-apps-ui-kit-react';
-import { ChatLines, User, Check, Language } from 'iconoir-react';
 import { useMiniKit } from 'minikit-js-dev-preview/minikit-provider';
 import {
   MiniKit,
@@ -17,6 +16,7 @@ import { useSocket } from '@/hooks/useSocket';
 import type { MatchedPayload, QueuedPayload, ErrorPayload } from '@/hooks/useSocket';
 import type { UserStats } from '@/types/stats';
 import { Navigation } from '@/components/Navigation';
+import { AnimatedLexi } from '@/components/AnimatedLexi';
 import { fetchRandomPrompt } from '@/lib/api';
 
 const languages = [
@@ -291,6 +291,7 @@ export default function MatchPage() {
   const [partner, setPartner] = useState<Partner | null>(null);
   const [chatSent, setChatSent] = useState(false);
   const [chatError, setChatError] = useState<string | null>(null);
+  const [socketError, setSocketError] = useState<string | null>(null);
   const [stats, setStats] = useState<UserStats>({ totalChats: 0, currentStreak: 0, communityRank: 'Unranked' });
   const [prompt, setPrompt] = useState<string | null>(null);
   const chatSubscriptionRef = useRef<(() => void) | void | null>(null);
@@ -470,6 +471,7 @@ export default function MatchPage() {
     setPartner(null);
     setChatSent(false);
     setChatError(null);
+    setSocketError(null);
     setPrompt(null);
   }, [leaveQueue]);
 
@@ -521,6 +523,7 @@ export default function MatchPage() {
 
     const handleError = (data: ErrorPayload) => {
       console.error('Socket error:', data.message);
+      setSocketError(data.message);
       setStatus('idle');
     };
 
@@ -555,8 +558,8 @@ export default function MatchPage() {
         {/* Header - Moved to top */}
         <div className="flex items-center justify-between pt-2">
           <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-black dark:bg-white">
-              <ChatLines className="h-6 w-6 text-white dark:text-black" strokeWidth={2} />
+            <div className="flex items-center justify-center w-12 h-12 rounded-xl" style={{ backgroundColor: '#0f52aa' }}>
+              <AnimatedLexi variant="logo" size={32} />
             </div>
             <div>
               <h1 className="text-2xl font-bold text-black dark:text-white">Lexi</h1>
@@ -569,26 +572,45 @@ export default function MatchPage() {
           </div>
         </div>
 
+        {/* Error Display */}
+        {socketError && (
+          <div className="bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-2xl p-6">
+            <div className="flex flex-col items-center justify-center space-y-4">
+              <AnimatedLexi variant="sad" size={100} />
+              <div className="text-center space-y-2">
+                <h3 className="text-lg font-semibold text-red-900 dark:text-red-100">Oops!</h3>
+                <p className="text-sm text-red-700 dark:text-red-300">{socketError}</p>
+              </div>
+              <Button
+                variant="secondary"
+                onClick={() => setSocketError(null)}
+              >
+                Dismiss
+              </Button>
+            </div>
+          </div>
+        )}
+
         {/* Stats Grid */}
         {status === 'idle' && (
           <div className="grid grid-cols-3 gap-3">
             {/* Total Chats */}
-            <div className="bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-xl p-4 flex flex-col items-center justify-center">
-              <ChatLines className="h-6 w-6 text-black dark:text-white mb-2" strokeWidth={2} />
+            <div className="bg-white dark:bg-black border-2 border-gray-200 dark:border-gray-800 hover:border-opacity-50 rounded-xl p-4 flex flex-col items-center justify-center transition-all" style={{ '--hover-border': '#0f52aa' } as React.CSSProperties}>
+              <AnimatedLexi variant="speak" size={40} className="mb-2" />
               <p className="text-2xl font-bold text-black dark:text-white">{stats.totalChats}</p>
               <p className="text-xs text-gray-600 dark:text-gray-400 text-center">Chats</p>
             </div>
 
             {/* Current Streak */}
-            <div className="bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-xl p-4 flex flex-col items-center justify-center">
-              <div className="text-2xl mb-2">🔥</div>
+            <div className="bg-white dark:bg-black border-2 border-gray-200 dark:border-gray-800 hover:border-opacity-50 rounded-xl p-4 flex flex-col items-center justify-center transition-all" style={{ '--hover-border': '#0f52aa' } as React.CSSProperties}>
+              <AnimatedLexi variant="streak" size={40} className="mb-2" />
               <p className="text-2xl font-bold text-black dark:text-white">{stats.currentStreak}</p>
               <p className="text-xs text-gray-600 dark:text-gray-400 text-center">Streak</p>
             </div>
 
             {/* Community Rank */}
-            <div className="bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-xl p-4 flex flex-col items-center justify-center">
-              <div className="text-2xl mb-2">🏅</div>
+            <div className="bg-white dark:bg-black border-2 border-gray-200 dark:border-gray-800 hover:border-opacity-50 rounded-xl p-4 flex flex-col items-center justify-center transition-all" style={{ '--hover-border': '#0f52aa' } as React.CSSProperties}>
+              <AnimatedLexi variant="medal" size={40} className="mb-2" />
               <p className="text-xl font-bold text-black dark:text-white">{stats.communityRank}</p>
               <p className="text-xs text-gray-600 dark:text-gray-400 text-center">Rank</p>
             </div>
@@ -598,8 +620,16 @@ export default function MatchPage() {
         {/* Main Content */}
         <div className="space-y-4">
           {status === 'idle' && (
-            <div className="bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-2xl p-6 space-y-6">
-              
+            <div className="bg-white dark:bg-black border-2 rounded-2xl p-6 space-y-6" style={{ borderColor: '#0f52aa20' }}>
+
+              {/* Lexi Character */}
+              <div className="flex justify-center">
+                <AnimatedLexi
+                  variant={role === 'learner' ? 'study' : role === 'fluent' ? 'teach' : 'idle'}
+                  size={150}
+                />
+              </div>
+
               {/* Role Selection */}
               <div className="space-y-3">
                 <label className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">I am a...</label>
@@ -608,23 +638,25 @@ export default function MatchPage() {
                     onClick={() => setRole('learner')}
                     className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all ${
                       role === 'learner'
-                        ? 'border-black dark:border-white bg-gray-50 dark:bg-gray-900'
+                        ? 'bg-gray-50 dark:bg-gray-900'
                         : 'border-gray-200 dark:border-gray-800 bg-white dark:bg-black hover:bg-gray-50 dark:hover:bg-gray-900'
                     }`}
+                    style={role === 'learner' ? { borderColor: '#0f52aa' } : {}}
                   >
-                    <User className="h-5 w-5 mb-2" strokeWidth={2} />
-                    <span className="font-medium text-sm">Learner</span>
+                    <AnimatedLexi variant="study" size={32} className="mb-2" />
+                    <span className={`font-medium text-sm ${role === 'learner' ? '' : ''}`} style={role === 'learner' ? { color: '#0f52aa' } : {}}>Learner</span>
                   </button>
                   <button
                     onClick={() => setRole('fluent')}
                     className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all ${
                       role === 'fluent'
-                        ? 'border-black dark:border-white bg-gray-50 dark:bg-gray-900'
+                        ? 'bg-gray-50 dark:bg-gray-900'
                         : 'border-gray-200 dark:border-gray-800 bg-white dark:bg-black hover:bg-gray-50 dark:hover:bg-gray-900'
                     }`}
+                    style={role === 'fluent' ? { borderColor: '#0f52aa' } : {}}
                   >
-                    <Check className="h-5 w-5 mb-2" strokeWidth={2} />
-                    <span className="font-medium text-sm">Fluent Guide</span>
+                    <AnimatedLexi variant="teach" size={32} className="mb-2" />
+                    <span className={`font-medium text-sm ${role === 'fluent' ? '' : ''}`} style={role === 'fluent' ? { color: '#0f52aa' } : {}}>Fluent Guide</span>
                   </button>
                 </div>
               </div>
@@ -635,7 +667,8 @@ export default function MatchPage() {
                 <select
                   value={language}
                   onChange={(e) => setLanguage(e.target.value)}
-                  className="w-full h-12 px-4 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-black text-black dark:text-white font-medium focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white"
+                  className="w-full h-12 px-4 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-black text-black dark:text-white font-medium focus:outline-none focus:ring-2"
+                  style={{ '--tw-ring-color': '#0f52aa' } as React.CSSProperties}
                 >
                   <option value="">Select a language</option>
                   {languages.map((lang) => (
@@ -653,7 +686,12 @@ export default function MatchPage() {
                     onClick={handleEnterQueue}
                     disabled={!language || !isConnected || isConnecting}
                     variant="primary"
-                    className="ring-2 ring-black dark:ring-white ring-offset-2 ring-offset-white dark:ring-offset-black"
+                    className="ring-2 ring-offset-2"
+                    style={{
+                      '--tw-ring-color': '#0f52aa',
+                      backgroundColor: !language || !isConnected || isConnecting ? undefined : '#0f52aa',
+                      borderColor: '#0f52aa'
+                    } as React.CSSProperties}
                   >
                     {isConnecting ? 'Connecting...' : !isConnected ? 'Disconnected' : 'Enter Queue'}
                   </Button>
@@ -670,10 +708,11 @@ export default function MatchPage() {
           )}
 
           {(status === 'loading' || status === 'queued') && (
-            <div className="bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-2xl p-8">
+            <div className="bg-white dark:bg-black border-2 rounded-2xl p-8" style={{ borderColor: '#0f52aa30' }}>
               <div className="flex flex-col items-center justify-center space-y-6">
-                <div className="w-12 h-12 border-2 border-black dark:border-white border-t-transparent dark:border-t-transparent rounded-full animate-spin" />
-                
+                {/* Lexi Thinking with Pulse Animation */}
+                <AnimatedLexi variant="thinking" animation="pulse" size={120} />
+
                 <div className="text-center space-y-2">
                   <h3 className="text-lg font-semibold text-black dark:text-white">
                     {status === 'loading' ? 'Connecting...' : 'Finding a partner...'}
@@ -686,9 +725,9 @@ export default function MatchPage() {
                   </p>
                   
                   {queuePosition !== null && (
-                    <div className="mt-2 p-3 bg-gray-50 dark:bg-gray-900 rounded-lg text-center w-full">
+                    <div className="mt-2 p-3 rounded-lg text-center w-full" style={{ backgroundColor: '#0f52aa10', borderLeft: '4px solid #0f52aa' }}>
                         <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
-                            People ahead of you: <span className="font-bold text-black dark:text-white">{Math.max(0, queuePosition - 1)}</span>
+                            People ahead of you: <span className="font-bold" style={{ color: '#0f52aa' }}>{Math.max(0, queuePosition - 1)}</span>
                         </p>
                     </div>
                   )}
@@ -707,16 +746,15 @@ export default function MatchPage() {
           )}
 
           {status === 'matched' && (
-            <div className="bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-2xl p-8">
+            <div className="bg-white dark:bg-black border-2 rounded-2xl p-8" style={{ borderColor: '#0f52aa50' }}>
               <div className="flex flex-col items-center justify-center space-y-6">
-                <div className="w-16 h-16 bg-green-50 dark:bg-green-950 rounded-full flex items-center justify-center">
-                  <Check className="h-8 w-8 text-green-600 dark:text-green-400" strokeWidth={2.5} />
-                </div>
-                
+                {/* Lexi Thumbs Up */}
+                <AnimatedLexi variant="thumbs_up" size={120} />
+
                 <div className="text-center space-y-2">
-                  <h3 className="text-xl font-bold text-black dark:text-white">Match Found</h3>
+                  <h3 className="text-xl font-bold" style={{ color: '#0f52aa' }}>Match Found!</h3>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
-                    You are paired with <span className="font-semibold text-black dark:text-white">{partner?.username || 'Partner'}</span>
+                    You are paired with <span className="font-semibold" style={{ color: '#0f52aa' }}>{partner?.username || 'Partner'}</span>
                   </p>
                 </div>
 
@@ -728,7 +766,12 @@ export default function MatchPage() {
                           onClick={() => partner && sendChatMessage(partner)}
                           disabled={!isInstalled || chatSent}
                           variant="primary"
-                          className="ring-2 ring-black dark:ring-white ring-offset-2 ring-offset-white dark:ring-offset-black"
+                          className="ring-2 ring-offset-2"
+                          style={{
+                            '--tw-ring-color': '#0f52aa',
+                            backgroundColor: !isInstalled || chatSent ? undefined : '#0f52aa',
+                            borderColor: '#0f52aa'
+                          } as React.CSSProperties}
                         >
                           {chatSent ? 'Chat Opened' : 'Start Chatting'}
                         </Button>
@@ -742,9 +785,9 @@ export default function MatchPage() {
                       </p>
                     </>
                   ) : (
-                    <div className="w-full p-4 rounded-xl bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800">
+                    <div className="w-full p-4 rounded-xl border-2" style={{ backgroundColor: '#0f52aa10', borderColor: '#0f52aa' }}>
                       <p className="text-center text-sm text-gray-600 dark:text-gray-400">
-                        Wait for <span className="font-semibold text-black dark:text-white">{partner?.username || 'your match'}</span> to text you
+                        Wait for <span className="font-semibold" style={{ color: '#0f52aa' }}>{partner?.username || 'your match'}</span> to text you
                       </p>
                     </div>
                   )}
@@ -776,7 +819,7 @@ export default function MatchPage() {
       </div>
       
       {/* Navigation */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-black border-t border-gray-200 dark:border-gray-800 px-0 pb-[35px] z-50">
+      <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-black border-t-2 px-0 pt-2 pb-[35px] z-50" style={{ borderColor: '#0f52aa40' }}>
         <Navigation />
       </div>
     </div>

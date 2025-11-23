@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { AuthButton } from '@/components/AuthButton';
+import { AnimatedLexi } from '@/components/AnimatedLexi';
 import { ChatLines, Globe, Group } from 'iconoir-react';
 
 export default function Home() {
@@ -33,10 +34,10 @@ export default function Home() {
         
         {/* Header / Brand */}
         <div className="text-center space-y-4">
-          <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-black dark:bg-white mb-4">
-            <ChatLines className="h-10 w-10 text-white dark:text-black" strokeWidth={2} />
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl mb-4" style={{ backgroundColor: '#0f52aa' }}>
+            <AnimatedLexi variant="logo" size={60} />
           </div>
-          <h1 className="text-4xl font-bold text-black dark:text-white">Lexi</h1>
+          <h1 className="text-4xl font-bold text-black dark:text-white">LEXI</h1>
           <p className="text-gray-600 dark:text-gray-400 text-base">
             Connect with language partners worldwide
           </p>
