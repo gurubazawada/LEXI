@@ -2,6 +2,8 @@ import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
 import type { UserStats } from '@/types/stats';
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:4000';
+
 /**
  * GET /api/stats
  * Returns user statistics including total chats, streak, and community rank
@@ -22,12 +24,49 @@ export async function GET() {
       );
     }
 
+    const walletAddress = session.user.walletAddress;
+
+    // Fetch user's rank from leaderboard
+    let rank: number | null = null;
+    try {
+      // First try the direct lookup endpoint for precise rank, regardless of position
+      const directResponse = await fetch(`${API_BASE_URL}/api/leaderboard/${walletAddress}`);
+      if (directResponse.ok) {
+        const directData = await directResponse.json();
+        rank = directData?.rank ?? null;
+      } else {
+        // Fallback to a broader leaderboard slice
+        const leaderboardResponse = await fetch(`${API_BASE_URL}/api/leaderboard?limit=2000`);
+        if (leaderboardResponse.ok) {
+          const leaderboardData = await leaderboardResponse.json();
+          // Check both fluentId and fluentWalletAddress since fluentId might be the wallet address
+          const userEntry = leaderboardData.leaderboard.find(
+            (entry: any) => 
+              entry.fluentId === walletAddress || 
+              entry.fluentWalletAddress === walletAddress
+          );
+          if (userEntry) {
+            rank = userEntry.rank;
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching leaderboard for rank:', error);
+      // Continue without rank if leaderboard fetch fails
+    }
+
+    // Format rank display
+    const communityRank =
+      rank === null
+        ? 'Unranked'
+        : `#${rank}`;
+
     // TODO: Fetch actual stats from Redis/Database
-    // For now, return placeholder data
+    // For now, return placeholder data with rank
     const stats: UserStats = {
       totalChats: 0,
       currentStreak: 0,
-      communityRank: '--',
+      communityRank,
       lastActiveDate: new Date().toISOString(),
       bestStreak: 0,
     };
@@ -81,4 +120,3 @@ export async function POST(request: Request) {
     );
   }
 }
-
