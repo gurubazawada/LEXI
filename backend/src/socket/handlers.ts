@@ -2,6 +2,7 @@ import { Server, Socket } from 'socket.io';
 import { queueService } from '../services/queue.service.js';
 import { matchingService } from '../services/matching.service.js';
 import { socketTrackingService } from '../services/socket-tracking.service.js';
+import { lessonService } from '../services/lesson.service.js';
 import type { JoinQueuePayload, UserData } from '../types/index.js';
 
 export function setupSocketHandlers(io: Server) {
@@ -70,6 +71,35 @@ export function setupSocketHandlers(io: Server) {
           
           // The matched user is already removed from queue and active_users by getNextFromQueue
           
+          // Create a lesson for this match
+          let lessonId: string | undefined;
+          try {
+            const learnerId = role === 'learner' ? finalUserId : match.id;
+            const learnerUsername = role === 'learner' ? userData.username : match.username;
+            const learnerWalletAddress = role === 'learner' ? userData.walletAddress : match.walletAddress;
+            const fluentId = role === 'fluent' ? finalUserId : match.id;
+            const fluentUsername = role === 'fluent' ? userData.username : match.username;
+            const fluentWalletAddress = role === 'fluent' ? userData.walletAddress : match.walletAddress;
+
+            const lesson = await lessonService.createLesson(
+              learnerId,
+              learnerUsername,
+              learnerWalletAddress,
+              fluentId,
+              fluentUsername,
+              fluentWalletAddress,
+              language
+            );
+            lessonId = lesson.id;
+
+            // Store lesson ID in socket data for later reference
+            socket.data.lessonId = lessonId;
+            socket.data.partnerId = match.id;
+          } catch (error) {
+            console.error('Error creating lesson:', error);
+            // Continue even if lesson creation fails
+          }
+          
           // Match found! Notify both users
           socket.emit('matched', {
             partner: {
@@ -80,9 +110,16 @@ export function setupSocketHandlers(io: Server) {
               role: match.role,
             },
             userId: finalUserId,
+            lessonId,
           });
 
           // Notify the matched partner
+          const partnerSocket = io.sockets.sockets.get(match.socketId);
+          if (partnerSocket) {
+            partnerSocket.data.lessonId = lessonId;
+            partnerSocket.data.partnerId = finalUserId;
+          }
+
           io.to(match.socketId).emit('matched', {
             partner: {
               id: finalUserId,
@@ -92,9 +129,10 @@ export function setupSocketHandlers(io: Server) {
               role: userData.role,
             },
             userId: match.id,
+            lessonId,
           });
 
-          console.log(`✓ Match completed: ${userData.username} ↔ ${match.username}`);
+          console.log(`✓ Match completed: ${userData.username} ↔ ${match.username}${lessonId ? ` (Lesson: ${lessonId})` : ''}`);
         } else {
           // No match found, add to queue
           await queueService.joinQueue(userData);
@@ -368,10 +406,20 @@ export function setupSocketHandlers(io: Server) {
     socket.on('call_end', async (payload: { partnerId: string }) => {
       try {
         const { partnerId } = payload;
-        const { userId } = socket.data;
+        const { userId, lessonId } = socket.data;
 
         if (!partnerId) {
           return;
+        }
+
+        // End the lesson if it exists
+        if (lessonId) {
+          try {
+            await lessonService.endLesson(lessonId);
+            console.log(`✓ Lesson ended: ${lessonId}`);
+          } catch (error) {
+            console.error('Error ending lesson:', error);
+          }
         }
 
         // Get partner's socket ID
