@@ -2,16 +2,14 @@ import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
 import type { UserStats } from '@/types/stats';
 
+// Force dynamic to ensure we always fetch fresh data
+export const dynamic = 'force-dynamic';
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:4000';
 
 /**
  * GET /api/stats
  * Returns user statistics including total chats, streak, and community rank
- * 
- * TODO: Implement actual stat tracking
- * - Store chat completions in Redis/Database
- * - Track daily logins for streak calculation
- * - Calculate community rank based on activity
  */
 export async function GET() {
   try {
@@ -25,15 +23,33 @@ export async function GET() {
     }
 
     const walletAddress = session.user.walletAddress;
+    
+    let totalChats = 0;
+    let currentStreak = 0;
+    let rank: number | null = null;
+    
+    // Fetch lessons from backend to count total chats
+    try {
+      const lessonsResponse = await fetch(`${API_BASE_URL}/api/lessons/${walletAddress}?limit=1000`);
+      if (lessonsResponse.ok) {
+        const data = await lessonsResponse.json();
+        if (data.lessons && Array.isArray(data.lessons)) {
+          totalChats = data.lessons.length;
+        }
+      } else {
+        console.warn('Failed to fetch lessons from backend:', lessonsResponse.status, lessonsResponse.statusText);
+      }
+    } catch (fetchError) {
+      console.error('Error fetching data from backend:', fetchError);
+    }
 
     // Fetch user's rank from leaderboard
-    let rank: number | null = null;
     try {
       // First try the direct lookup endpoint for precise rank, regardless of position
       const directResponse = await fetch(`${API_BASE_URL}/api/leaderboard/${walletAddress}`);
       if (directResponse.ok) {
         const directData = await directResponse.json();
-        rank = directData?.rank ?? null;
+        rank = directData?.entry?.rank ?? null;
       } else {
         // Fallback to a broader leaderboard slice
         const leaderboardResponse = await fetch(`${API_BASE_URL}/api/leaderboard?limit=2000`);
@@ -52,20 +68,14 @@ export async function GET() {
       }
     } catch (error) {
       console.error('Error fetching leaderboard for rank:', error);
-      // Continue without rank if leaderboard fetch fails
     }
 
     // Format rank display
-    const communityRank =
-      rank === null
-        ? 'Unranked'
-        : `#${rank}`;
+    const communityRank = rank === null ? 'Unranked' : `#${rank}`;
 
-    // TODO: Fetch actual stats from Redis/Database
-    // For now, return placeholder data with rank
     const stats: UserStats = {
-      totalChats: 0,
-      currentStreak: 0,
+      totalChats,
+      currentStreak, // Streak logic would go here
       communityRank,
       lastActiveDate: new Date().toISOString(),
       bestStreak: 0,
